@@ -1,3 +1,9 @@
+/*
+ * Author: Dh
+ * Update Date: 2018.5.21
+ * Update info: integrate word scanner
+ */
+
 #include <iostream>
 #include <cstdio>
 

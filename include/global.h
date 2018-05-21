@@ -1,5 +1,12 @@
 #ifndef _GLOBAL_H_
 #define _GLOBAL_H_
+/*
+ * Author: Dh
+ * Update Date: 2018.5.21
+ * Update info: 
+ * add STATE to support DFA
+ * add TYPE to support token type
+ */
 
 
 namespace dh {
