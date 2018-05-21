@@ -1,3 +1,10 @@
+
+/*
+ * Author: Dh
+ * Done Date: 2018.5.21
+ * Introduction: token class implement
+ */
+
 #include "include/global.h"
 #include "include/scan.h"
 

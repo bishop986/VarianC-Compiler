@@ -1,7 +1,12 @@
+/*
+ * Author: Dh
+ * Done Date: 2018.5.21
+ * Introduction: word scanner to generate token sequence
+ */
+
 #include "include/scan.h"
 #include "include/global.h"
 #include <fstream>
-
 
 namespace dh{
 

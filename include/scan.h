@@ -1,6 +1,12 @@
 #ifndef _SCAN_H_
 #define _SCAN_H_
 
+/*
+ * Author: Dh
+ * Done Date: 2018.5.21
+ * Introduction: word scanner to generate token sequence
+ */
+
 #include <iostream>
 #include <cstdio>
 #include <string>
