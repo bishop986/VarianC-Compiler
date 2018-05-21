@@ -87,6 +87,8 @@ bool scanner::ungetToken()
  */
 bool scanner::scan(::std::FILE *fp)
 {
+	this->reset();
+
 	STATE state = STATE::START;
 	char cur = 0;
 	char lastch = 0;
@@ -256,6 +258,7 @@ bool scanner::scan(::std::FILE *fp)
 							<< "\" near line " 
 							<< line << ::std::endl;
 						tmp.clear();
+						rightflag = false;
 					}
 				} else if( lastch >= '0' && lastch <= '9')
 				{
@@ -288,6 +291,7 @@ bool scanner::scan(::std::FILE *fp)
 							<< line
 							<< ::std::endl;
 						tmp.clear();
+						rightflag = false;
 						state = STATE::START;
 					}
 				}
@@ -413,6 +417,7 @@ bool scanner::scan(::std::FILE *fp)
 								<< " near line " 
 								<< line
 								<< ::std::endl;
+							rightflag = false;
 						}
 						break;
 					case '&':
@@ -432,6 +437,7 @@ bool scanner::scan(::std::FILE *fp)
 								<< " near line " 
 								<< line
 								<< ::std::endl;
+							rightflag = false;
 						}
 						break;
 					case '+':
@@ -469,9 +475,9 @@ bool scanner::scan(::std::FILE *fp)
 
 void scanner::debug()
 {
-
-	if ( !rightflag)
+	if ( !scanflag)
 	{
+		::std::cerr << "[ERROR] Token Sequence is not ready\n";
 		return;
 	}
 
