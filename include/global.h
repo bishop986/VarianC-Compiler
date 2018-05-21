@@ -1,0 +1,18 @@
+#ifndef _GLOBAL_H_
+#define _GLOBAL_H_
+
+
+namespace dh {
+
+/*********State********/
+enum STATE {
+	START = 0, INID, ININT, INFLOAT, INSTRING, DONE, INMULTICOMMENT, INSINGLECOMMENT 
+};
+
+/*********Token Type**********/
+enum TYPE {
+	BOOLEAN = 8, VOID, INT, FLOAT, BREAK, CONTINUE, ELSE, FOR, IF, RETURN, WHILE, ARITHOP, RELOP, EQUOP, ASSINGOP, LOGICALOP, NONES, STRING, ID, SEPOP
+};
+
+}
+#endif
