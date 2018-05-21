@@ -31,13 +31,13 @@ identifier -> [_a-zA-Z][_a-zA-Z0-9]*
 关键字: boolean,break,continue,else,for,float,if,int,return,void,while
 
 运算符:
-|Name         |Tokens     |
-|:------------|:----------|
-|ArithMetic Op| + - * /   |
-|Relational Op| < <= > >= |
-|Equality Op  | == !=     |
-|Logical Op   | || && !   |
-|Assignment Op| =         |
+Name         |Tokens     
+------------|----------
+ArithMetic Op| + - * /   
+Relational Op| < <= > >= 
+Equality Op  | == !=     
+Logical Op   | || && !   
+Assignment Op| =         
 注意:其中"!"是一个取反单目运算符，"+"与"-"同时也被重载为正负标识符号
 
 分隔符: { } ( ) [ ] ; ,
