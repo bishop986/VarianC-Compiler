@@ -27,10 +27,10 @@ class TreeNode{
 		TreeNoed(const float& val);
 
 		// from left to right append child tree
-		void appendChild( NodePtr& ptr);
+		void appendChild( const NodePtr& ptr);
 
 		// set sibling
-		void setSibling( const ::std::shared_ptr<TreeNode>& ptr);
+		void setSibling( const NodePtr& ptr);
 
 		// set some extra info
 		void setNodeKind( const int& _nk);
@@ -52,15 +52,9 @@ class TreeNode{
 		// get next sibling
 		NodePtr getSibling() const;
 
-		void setStrVal( const ::std::string str)
-		{
-			this->strval = str;
-		}
+		void setStrVal( const ::std::string str);
 
-		::std::string getStrVal()
-		{
-			return this->strval;
-		}
+		::std::string getStrVal();
 
 	private:
 		::std::vector< ::std::shared_ptr<TreeNode> > _children;
