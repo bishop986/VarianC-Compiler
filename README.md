@@ -158,7 +158,7 @@ additive-expr --> multiplicative-expr { "+" | "-" multiplicative-expr }
 
 multiplicative-expr --> unary-expr { "*" | "/" unary-expr}
 
-unary-expr --> "+" | "-" | "!" primary-expr
+unary-expr --> {"+" | "-" | "!"} primary-expr
 
 primary-expr --> identifier args-list? | identifier "[" expr "]" | "(" expr ")" | **INTLITERAL** | FLOATLITERAL | BOOLLITERAL | STRINGLITERAL
 
