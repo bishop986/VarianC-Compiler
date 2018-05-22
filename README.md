@@ -17,7 +17,7 @@ VC同时包含单行和多行注释，单行注释使用//，多行注释使用/
 ### 开发日志待办事项
 
 - [X] 词法分析，符号序列生成		完成: 2018.05.21
-- [ ] 语法分析，语法树生成
+- [ ] 语法分析，语法树生成			开始: 2018.05.22
 - [ ] 语义分析，类型检查
 - [ ] 中间代码生成，目标代码优化
 - [ ] 目标代码生成 
@@ -85,8 +85,88 @@ float说明: **float**是一个单精度浮点类型，有关于它的运算符�
 
 ### 更新2，2018.5.21 词法分析开发结束，相关代码冻结
 
+### 更新3，2018.5.21 语法分析开始
+
+**语法规则如下**
+
+program --> (func-decl|var-decl)*
+
+// declarations
+
+func-decl --> type identifier para-list compound-stmt
+
+var-decl --> type init-declarator-list ";"
+
+init-declarator-list --> init-declarator ";"
+
+init-declarator --> declarator ( "=" initialiser ) ?
+
+declarator --> identifier | identifier "[" **INTLITERAL** ? "]"
+
+initialiser --> expr | "{" expr ( "," expr )* "}"
+
+// primitive types
+
+type --> void | boolean | int | float
+
+// identifier 
+
+identifier --> **ID**
+
+// statement 
+
+compound-stmt --> "{" var-decl* stmt* "}"
+
+stmt --> compound-stmt | if-stmt | for-stmt | while-stmt | break-stmt | continue-stmt | return-stmt | expr-stmt
+
+if-stmt --> if "(" expr ")" stmt ( else stmt ) ?
+
+for-stmt --> for "(" expr? ";" expr? ";" expr? ")" stmt 
+
+while-stmt --> while "(" expr ")" stmt
+
+break-stmt --> break ";"
+
+continue-stmt --> continue ";"
+
+return-stmt --> return expr? ";"
+
+expr-stmt --> expr? ";"
+
+//exporessions 
+
+expr --> assignment-expr
+
+assignment-expr --> ( cond-or-expr "=" )* cond-or-expr
+
+cond-or-expr --> cond-and-expr { "||" cond-and-expr }
+
+cond-and-expr --> equlity-expr { "&&" equlity-expr }
+
+equlity-expr --> rel-expr { "==" | "!=" rel-expr }
+
+rel-expr --> additive-expr { "<" | "<=" | ">" | ">=" additive-expr }
+
+additive-expr --> multiplicative-expr { "+" | "-" multiplicative-expr }
+
+multiplicative-expr --> unary-expr { "*" | "/" unary-expr}
+
+unary-expr --> "+" | "-" | "!" primary-expr
+
+primary-expr --> identifier args-list? | identifier "[" expr "]" | "(" expr ")" | **INTLITERAL** | FLOATLITERAL | BOOLLITERAL | STRINGLITERAL
+
+// parameters
+
+para-list --> "(" proper-para-list? ")"
+
+proper-para-list --> para-decl ( "," para-decl )*
+
+para-decl --> type declarator
+
+arg-list --> "(" proper-args-list? ")"
+
+proper-arg-list --> args ( "," arg )*
+
+arg --> expr
+
 (TODO)
-
-
-
-
