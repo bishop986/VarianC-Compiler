@@ -5,8 +5,8 @@
  * Introduction: token class implement
  */
 
-#include "include/global.h"
-#include "include/scan.h"
+#include "../include/global.h"
+#include "../include/scan.h"
 
 namespace dh {
 

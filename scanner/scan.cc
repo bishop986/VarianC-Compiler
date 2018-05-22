@@ -6,8 +6,8 @@
  * Fixed: if ( cur >= '0' && lastch <= '9') => if ( cur >= '0' && cur <= '9')
  */
 
-#include "include/scan.h"
-#include "include/global.h"
+#include "../include/scan.h"
+#include "../include/global.h"
 #include <fstream>
 
 namespace dh{
