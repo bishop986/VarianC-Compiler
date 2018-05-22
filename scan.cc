@@ -1,7 +1,9 @@
 /*
  * Author: Dh
- * Done Date: 2018.5.21
- * Introduction: word scanner to generate token sequence
+ * update Date: 2018.5.22
+ * Update info: 
+ * bug in INFLOAT, lastch is num, cur is num 
+ * Fixed: if ( cur >= '0' && lastch <= '9') => if ( cur >= '0' && cur <= '9')
  */
 
 #include "include/scan.h"
@@ -271,14 +273,13 @@ bool scanner::scan(::std::FILE *fp)
 					{
 						tmp += cur;
 						state = STATE::INFLOAT;
-					} else if ( cur >= '0' && lastch <= '9')
+					} else if ( cur >= '0' && cur <= '9')
 					{
 						tmp += cur;
 						state = STATE::INFLOAT;
 					} else
 					{
 						state = STATE::DONE;
-						
 						_tokens.push_back( token( tmp, TYPE::FLOAT, line));
 						tmp.clear();
 					}
@@ -445,10 +446,18 @@ bool scanner::scan(::std::FILE *fp)
 							rightflag = false;
 						}
 						break;
+					case '/':
+						if ( cur == '/')
+						{
+							state = STATE::INSINGLECOMMENT;
+							continue;
+						} else if ( cur == '*'){
+							state = STATE::INMULTICOMMENT;
+							continue;
+						}
+					case '*':
 					case '+':
 					case '-':
-					case '/':
-					case '*':
 						tmp.clear();
 						tmp = lastch;
 						_tokens.push_back( token( tmp, TYPE::ARITHOP, line));
@@ -467,6 +476,18 @@ bool scanner::scan(::std::FILE *fp)
 						_tokens.push_back( token( tmp, TYPE::SEPOP, line));
 						tmp.clear();
 						break;
+					default:
+						::std::cerr << "[ERROR] Unexpected Token \""
+							<< lastch
+							<< "\" in line "
+							<< line
+							<< ::std::endl;
+						rightflag = false;
+						break;
+				}
+				if (cur == '\n' || cur == '\r')
+				{
+					--line;
 				}
 				state = STATE::START;
 				continue;
