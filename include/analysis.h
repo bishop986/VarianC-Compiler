@@ -139,12 +139,42 @@ class analysis{
 		NodePtr _root;
 
 		// recursion analysis
+		NodePtr program();
+		NodePtr decl();
+		NodePtr init_declarator_list();
+		NodePtr init_declarator();
+		NodePtr delclarator();
+		NodePtr initialiser();
+		NodePtr compound_stmt();
+		NodePtr stmt();
+		NodePtr if_stmt();
+		NodePtr for_stmt();
+		NodePtr while_stmt();
+		NodePtr break_stmt();
+		NodePtr continue_stmt();
+		NodePtr return_stmt();
+		NodePtr expr_stmt();
+		NodePtr expr();
+		NodePtr assignment_expr();
+		NodePtr cond_or_expr();
+		NodePtr cond_and_expr();
+		NodePtr equlity_expr();
+		NodePtr rel_expr();
+		NodePtr additive_expr();
+		NodePtr multiplicative_expr();
+		NodePtr unary_expr();
+		NodePtr primary_expr();
+		NodePtr para_list();
+		NodePtr proper_para_list();
+		NodePtr para_decl();
+		NodePtr arg_list();
+		NodePtr proper_arg_list();
+		NodePtr arg();
 		
 		// semantics analyze
 		int tmp_dType;
 
-
-		// gen code:
+		// gen midcode:
 		/*
 		int tmp_name_counter;
 		::std::string newtmpVal();
