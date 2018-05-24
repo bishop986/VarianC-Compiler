@@ -104,7 +104,7 @@ func-decl --> type identifier para-list compound-stmt
 
 var-decl --> type init-declarator-list ";"
 
-init-declarator-list --> init-declarator ";"
+init-declarator-list --> init-declarator {"," init-declarator} ";"
 
 init-declarator --> declarator ( "=" initialiser ) ?
 
@@ -175,5 +175,7 @@ arg-list --> "(" proper-args-list? ")"
 proper-arg-list --> args ( "," arg )*
 
 arg --> expr
+
+### 更新5，重新构建抽象语法树结构，决定更换语法分析方法
 
 (TODO)
