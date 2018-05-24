@@ -22,19 +22,31 @@ enum TYPE {
 };
 
 enum NodeKind{
-	DeclK, ExpK, StmtK
+	DeclK, ExprK, DeclaratorK, InitialiserK, StmtK
 };
 
 enum DeclKind{
-	FuncK, VarK
+	FuncK, VarK, ParaK
 };
 
-enum ExpKind{
-	IdK, ConstK, OpK
+enum DeclaratorKind{
+	PrimitiveK, ArrayK
+};
+
+enum InitialiserKind{
+	ListK, SingleK
+};
+
+enum ExprKind{
+	AssignK, CondOrK, CondAndK, EquK, RelK, AdditiveK, MulK, UnaryK, PriK
 };
 
 enum StmtKind{
-	ComK, IfK, ForK, WhileK, BreakK, ContinueK, RetK, AssignK
+	ComK, IfK, ForK, WhileK, BreakK, ContinueK, RetK
+};
+
+enum TypeKind{
+	BoolK, StringK, IntK, FloatK
 };
 
 }
