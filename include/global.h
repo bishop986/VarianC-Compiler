@@ -21,5 +21,21 @@ enum TYPE {
 	BOOLEAN = 8, VOID, INT, FLOAT, BREAK, CONTINUE, ELSE, FOR, IF, RETURN, WHILE, ARITHOP, RELOP, EQUOP, ASSINGOP, LOGICALOP, NONES, STRING, ID, SEPOP
 };
 
+enum NodeKind{
+	DeclK, ExpK, StmtK
+};
+
+enum DeclKind{
+	FuncK, VarK
+};
+
+enum ExpKind{
+	IdK, ConstK, OpK
+};
+
+enum StmtKind{
+	ComK, IfK, ForK, WhileK, BreakK, ContinueK, RetK, AssignK
+};
+
 }
 #endif
