@@ -18,7 +18,7 @@ enum STATE {
 
 /*********Token Type**********/
 enum TYPE {
-	BOOLEAN = 8, VOID, INT, FLOAT, BREAK, CONTINUE, ELSE, FOR, IF, RETURN, WHILE, ARITHOP, RELOP, EQUOP, ASSINGOP, LOGICALOP, NONES, STRING, ID, SEPOP
+	BOOLEAN = 8, VOID, INT, FLOAT, BREAK, CONTINUE, ELSE, FOR, IF, RETURN, WHILE, ADDOP, MULOP, RELOP, EQUOP, ASSINGOP, LOGICALOP, NONES, STRING, ID, SEPOP, NUMBOOLEAN, NUMINT, NUMFLOAT
 };
 
 enum NodeKind{
@@ -38,11 +38,11 @@ enum InitialiserKind{
 };
 
 enum ExprKind{
-	AssignK, CondOrK, CondAndK, EquK, RelK, AdditiveK, MulK, UnaryK, PriK
+	AssignK, CondOrK, CondAndK, EquK, RelK, AdditiveK, MulK, UnaryK, ArrayExp, FuncExp, BraketExp, INTLITERAL, FLOATLITERAL, BOOLLITERAL, STRINGLITERAL, IdK
 };
 
 enum StmtKind{
-	ComK, IfK, ForK, WhileK, BreakK, ContinueK, RetK
+	ComK, IfK, ForK, WhileK, BreakK, ContinueK, RetK, ExpK
 };
 
 enum TypeKind{
