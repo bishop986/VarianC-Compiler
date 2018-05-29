@@ -109,14 +109,16 @@ class analysis{
 	public:
 
 		analysis( scanner tokens);
-		auto getRoot();
+		NodePtr getRoot();
+		void printTree() ;
+		void initSynTree();
 		//void buildSymTab();
 		//void genMidCode();
 		//void exportMidCode( const ::std::string path); 
 	private:
 
-		void printTree( const NodePtr& ptr) const;
-		void initSynTree();
+		int layer_record;
+		void printTree( const NodePtr& ptr) ;
 		bool initFlag;
 
 		// compute attr of node and insert symbol to table
@@ -140,10 +142,11 @@ class analysis{
 
 		// recursion analysis
 		NodePtr program();
-		NodePtr decl();
+		NodePtr func_decl();
+		NodePtr var_decl();
 		NodePtr init_declarator_list();
 		NodePtr init_declarator();
-		NodePtr delclarator();
+		NodePtr declarator();
 		NodePtr initialiser();
 		NodePtr compound_stmt();
 		NodePtr stmt();
@@ -158,7 +161,7 @@ class analysis{
 		NodePtr assignment_expr();
 		NodePtr cond_or_expr();
 		NodePtr cond_and_expr();
-		NodePtr equlity_expr();
+		NodePtr equality_expr();
 		NodePtr rel_expr();
 		NodePtr additive_expr();
 		NodePtr multiplicative_expr();
