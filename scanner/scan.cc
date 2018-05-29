@@ -1,9 +1,10 @@
 /*
  * Author: Dh
- * update Date: 2018.5.22
+ * update Date: 2018.5.29
  * Update info: 
  * bug in INFLOAT, lastch is num, cur is num 
  * Fixed: if ( cur >= '0' && lastch <= '9') => if ( cur >= '0' && cur <= '9')
+ * Fixed: number type INT > NUMINT
  */
 
 #include "../include/scan.h"
@@ -201,7 +202,7 @@ bool scanner::scan(::std::FILE *fp)
 						tmp_type = TYPE::WHILE;
 					} else if ( tmp == "true" || tmp == "false")
 					{
-						tmp_type = TYPE::BOOLEAN;
+						tmp_type = TYPE::NUMBOOLEAN;
 					} else 
 					{
 						tmp_type = TYPE::ID;
@@ -228,7 +229,7 @@ bool scanner::scan(::std::FILE *fp)
 				{
 					state = STATE::DONE;
 					
-					_tokens.push_back( token( tmp, TYPE::INT, line));
+					_tokens.push_back( token( tmp, TYPE::NUMINT, line));
 					tmp.clear();
 				}
 				lastch = cur;
@@ -244,7 +245,7 @@ bool scanner::scan(::std::FILE *fp)
 					{
 						state = STATE::DONE;
 
-						_tokens.push_back( token( tmp, TYPE::FLOAT, line));
+						_tokens.push_back( token( tmp, TYPE::NUMFLOAT, line));
 						tmp.clear();
 					}
 				} else if ( lastch == 'E' || lastch == 'e')
@@ -280,7 +281,7 @@ bool scanner::scan(::std::FILE *fp)
 					} else
 					{
 						state = STATE::DONE;
-						_tokens.push_back( token( tmp, TYPE::FLOAT, line));
+						_tokens.push_back( token( tmp, TYPE::NUMFLOAT, line));
 						tmp.clear();
 					}
 				} else if ( lastch == '+' || lastch == '-')
@@ -456,11 +457,16 @@ bool scanner::scan(::std::FILE *fp)
 							continue;
 						}
 					case '*':
+						tmp.clear();
+						tmp = lastch;
+						_tokens.push_back( token( tmp, TYPE::MULOP, line));
+						tmp.clear();
+						break;
 					case '+':
 					case '-':
 						tmp.clear();
 						tmp = lastch;
-						_tokens.push_back( token( tmp, TYPE::ARITHOP, line));
+						_tokens.push_back( token( tmp, TYPE::ADDOP, line));
 						tmp.clear();
 						break;
 					case '{':
@@ -548,8 +554,11 @@ void scanner::debug()
 			case TYPE::WHILE:
 				tmp_type = "WHILE";
 				break;
-			case TYPE::ARITHOP:
-				tmp_type = "ARITHOP";
+			case TYPE::ADDOP:
+				tmp_type = "ADDOP";
+				break;
+			case TYPE::MULOP:
+				tmp_type = "MULOP";
 				break;
 			case TYPE::RELOP:
 				tmp_type = "RELOP";
@@ -572,6 +581,14 @@ void scanner::debug()
 			case TYPE::STRING:
 				tmp_type = "STRING";
 				break;
+			case TYPE::NUMINT:
+				tmp_type = "NUMINT";
+				break;
+			case TYPE::NUMFLOAT:
+				tmp_type = "NUMFLOAT";
+				break;
+			case TYPE::NUMBOOLEAN:
+				tmp_type = "NUMBOOLEAN";
 			case TYPE::NONES:
 				break;
 		}

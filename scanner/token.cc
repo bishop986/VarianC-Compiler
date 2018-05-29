@@ -43,6 +43,7 @@ token& token::operator=(const token& eq)
 {
 	this->_type = eq._type;
 	this->_val = eq._val;
+	this->_lineno = eq._lineno;
 	return *this;
 }
 
