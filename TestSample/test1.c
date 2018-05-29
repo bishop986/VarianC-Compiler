@@ -1,4 +1,4 @@
-int f() {          
+int f() {         
 	return 200;
 }
 
@@ -23,6 +23,8 @@ int main() {
 		int main;   
 		int f;     
 		main = f = 100;
+		f = main + f;
+		i = ( f = 3) * f;
 		putIntLn(i);
 		putIntLn(main);
 		putIntLn(f);
