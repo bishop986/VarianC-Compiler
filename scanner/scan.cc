@@ -502,6 +502,7 @@ bool scanner::scan(::std::FILE *fp)
 	}
 	_it = _tokens.begin();
 	scanflag = true;;
+	fclose(fp);
 	return true;
 }
 
