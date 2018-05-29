@@ -9,6 +9,8 @@
 
 #include "include/global.h"
 #include "include/scan.h"
+#include "include/syntax_treenode.h"
+#include "include/analysis.h"
 
 // compiler enter
 
@@ -35,9 +37,14 @@ int main( int argc, char** argv)
 	{
 		return 1;
 	}
+
 #ifdef _DEBUG_
 	tokens.debug();
 #endif
+
+	::dh::analysis an(tokens);
+	an.initSynTree();
+	an.printTree();
 	return 0;
 	
 }
