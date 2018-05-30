@@ -46,7 +46,7 @@ enum StmtKind{
 };
 
 enum TypeKind{
-	BoolK, StringK, IntK, FloatK
+	BoolK, StringK, IntK, FloatK, VoidK, BoolArrayK, StringArraryK, IntArrayK, FloatArrayK, VoidArrayK
 };
 
 }

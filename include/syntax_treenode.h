@@ -22,9 +22,9 @@ typedef ::boost::variant< ::std::string, int, float> DataType;
 
 class TreeNode{
 	public:
-		TreeNode(const ::std::string& c);
-		TreeNode(const int& val);
-		TreeNode(const float& val);
+		TreeNode(const ::std::string& c, int lineno);
+		TreeNode(const int& val, int lineno);
+		TreeNode(const float& val, int lineno);
 
 		// from left to right append child tree
 		void appendChild( const NodePtr& ptr);
@@ -36,12 +36,16 @@ class TreeNode{
 		void setNodeKind( const int& _nk);
 		void setKind( const int& _k);
 		void setType( const int& _t);
+		void setData( const int& _v);
+		void setData( const float& _v);
+		void setData( const ::std::string& _v);
 
 		// get some extra info
 		int getNodeKind() const;
 		int getKind() const;
 		int getType() const;
 		int getChildSize() const;
+		int getLineno() const;
 
 		// get children
 		::std::vector< NodePtr > getChildren() const;
@@ -63,7 +67,7 @@ class TreeNode{
 
 		int _nodekind;
 		int _kind;
-		int _level;
+		int _lineno;
 
 		DataType _data;
 		int _type;

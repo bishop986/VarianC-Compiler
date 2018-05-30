@@ -180,6 +180,7 @@ NodePtr analysis::program()
 			*tmp = _tokens.getToken();
 			ret = func_decl();
 		}
+		evalType(ret);
 	}
 
 	NodePtr tmp_cur_ptr = ret;
@@ -210,6 +211,7 @@ NodePtr analysis::program()
 			*tmp = _tokens.getToken();
 			tmp_in_ptr = func_decl();
 		}
+		evalType(tmp_in_ptr);
 
 		tmp_cur_ptr->setSibling( tmp_in_ptr);
 		tmp_cur_ptr = tmp_in_ptr;
@@ -224,11 +226,12 @@ NodePtr analysis::func_decl()
 	::std::cout << "[DEBUG] in func_decl, get type " << tmp->getVal() << ::std::endl;
 #endif
 	
-	NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
+	NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 	match(tmp->getVal());
 
+	int lineno = tmp->getLineno();
 	::std::string tmp_str = identifier();
-	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str);
+	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str,lineno);
 	ret->setNodeKind(NodeKind::DeclK);
 	ret->setKind(DeclKind::FuncK);
 	ret->appendChild(tmp_ptr);
@@ -249,8 +252,24 @@ NodePtr analysis::var_decl()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in var_decl\n";
 #endif
-	NodePtr ret = ::std::make_shared<TreeNode>(tmp->getVal());
-	match(tmp->getVal());
+	NodePtr ret = ::std::make_shared<TreeNode>(tmp->getVal(), tmp->getLineno());
+	if ( tmp->getVal() == "int")
+	{
+		match("int");
+		ret->setType(TypeKind::IntK);
+	} else if ( tmp->getVal() == "boolean")
+	{
+		match("boolean");
+		ret->setType(TypeKind::BoolK);
+	} else if ( tmp->getVal() == "float")
+	{
+		match("float");
+		ret->setType(TypeKind::FloatK);
+	} else 
+	{
+		match("void");
+		ret->setType(TypeKind::VoidK);
+	}
 	ret->setNodeKind(NodeKind::DeclK);
 	ret->setKind(DeclKind::VarK);
 
@@ -291,7 +310,6 @@ NodePtr analysis::init_declarator()
 
 	if ( tmp->getVal() == "=")
 	{
-		match("=");
 		tmp_ptr = initialiser();
 		ret->appendChild(tmp_ptr);
 	}
@@ -304,18 +322,30 @@ NodePtr analysis::declarator()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in declarator\n";
 #endif
+	int lineno = tmp->getLineno();
 	::std::string tmp_str = identifier();
-	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str);
+	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str,lineno);
 	ret->setNodeKind(NodeKind::DeclaratorK);
 
 	if ( tmp->getVal() == "[")
 	{
+		lineno = tmp->getLineno();
 		match("[");
-		int tmp_int = numberInteger();
-		NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp_int);
-		tmp_ptr->setNodeKind(NodeKind::ExprK);
-		tmp_ptr->setKind(ExprKind::INTLITERAL);
-		tmp_ptr->setType(TypeKind::IntK);
+		NodePtr tmp_ptr;
+		if ( tmp->getVal() != "]")
+		{
+			int tmp_int = numberInteger();
+			tmp_ptr = ::std::make_shared<TreeNode>(tmp_int,lineno);
+			tmp_ptr->setNodeKind(NodeKind::ExprK);
+			tmp_ptr->setKind(ExprKind::INTLITERAL);
+			tmp_ptr->setType(TypeKind::IntK);
+		} else 
+		{
+			tmp_ptr = ::std::make_shared<TreeNode>(0,lineno);
+			tmp_ptr->setNodeKind(NodeKind::ExprK);
+			tmp_ptr->setKind(ExprKind::INTLITERAL);
+			tmp_ptr->setType(TypeKind::IntK);
+		}
 		match("]");
 		ret->setKind(DeclaratorKind::ArrayK);
 		ret->appendChild(tmp_ptr);
@@ -333,7 +363,8 @@ NodePtr analysis::initialiser()
 	::std::cout << "[DEBUG] in initialiser\n";
 #endif
 
-	NodePtr ret = ::std::make_shared<TreeNode>("=");
+	NodePtr ret = ::std::make_shared<TreeNode>("=",tmp->getLineno());
+	match("=");
 	ret->setNodeKind(NodeKind::InitialiserK);
 	NodePtr tmp_ptr;
 
@@ -366,7 +397,7 @@ NodePtr analysis::compound_stmt()
 #ifdef _DEBGU_
 	::std::cout << "[DEBUG] in compound_stmt \n";
 #endif
-	NodePtr ret = ::std::make_shared<TreeNode>("{}");
+	NodePtr ret = ::std::make_shared<TreeNode>("{}",tmp->getLineno());
 	NodePtr tmp_ptr = nullptr;
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::ComK);
@@ -473,8 +504,8 @@ NodePtr analysis::if_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in if_stmt\n";
 #endif
+	NodePtr ret = ::std::make_shared<TreeNode>("if",tmp->getLineno());
 	match("if");
-	NodePtr ret = ::std::make_shared<TreeNode>("if");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::IfK);
 
@@ -500,8 +531,8 @@ NodePtr analysis::for_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in for_stmt\n";
 #endif
+	NodePtr ret= ::std::make_shared<TreeNode>("for",tmp->getLineno());
 	match("for");
-	NodePtr ret= ::std::make_shared<TreeNode>("for");
 	NodePtr tmp_ptr;
 
 	ret->setNodeKind(NodeKind::StmtK);
@@ -541,9 +572,9 @@ NodePtr analysis::while_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in while_stmt\n";
 #endif
-	match("while");
 
-	NodePtr ret = ::std::make_shared<TreeNode>("while");
+	NodePtr ret = ::std::make_shared<TreeNode>("while",tmp->getLineno());
+	match("while");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::WhileK);
 
@@ -564,8 +595,8 @@ NodePtr analysis::break_stmt()
 	::std::cout << "[DEBUG] in break_stmt\n";
 #endif
 
+	NodePtr ret = ::std::make_shared<TreeNode>("break",tmp->getLineno());
 	match("break");
-	NodePtr ret = ::std::make_shared<TreeNode>("break");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::BreakK);
 	match(";");
@@ -578,8 +609,8 @@ NodePtr analysis::continue_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in continue_stmt\n";
 #endif
+	NodePtr ret = ::std::make_shared<TreeNode>("continue",tmp->getLineno());
 	match("continue");
-	NodePtr ret = ::std::make_shared<TreeNode>("continue");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::ContinueK);
 
@@ -593,8 +624,8 @@ NodePtr analysis::return_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in return_stmt\n";
 #endif
+	NodePtr ret = ::std::make_shared<TreeNode>("return",tmp->getLineno());
 	match("return");
-	NodePtr ret = ::std::make_shared<TreeNode>("return");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::RetK);
 
@@ -613,7 +644,7 @@ NodePtr analysis::expr_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in expr_stmt\n";
 #endif
-	NodePtr ret = ::std::make_shared<TreeNode>("Expr");
+	NodePtr ret = ::std::make_shared<TreeNode>("Expr",tmp->getLineno());
 
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::ExpK);
@@ -648,8 +679,8 @@ NodePtr analysis::assignment_expr()
 
 	if ( tmp->getVal() == "=")
 	{
+		ret = ::std::make_shared<TreeNode>("=",tmp->getLineno());
 		match("=");
-		ret = ::std::make_shared<TreeNode>("=");
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::AssignK);
 		ret->appendChild(tmp_ptr);
@@ -661,8 +692,8 @@ NodePtr analysis::assignment_expr()
 
 			if ( tmp->getVal() == "=")
 			{
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("=",tmp->getLineno());
 				match("=");
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("=");
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::AssignK);
 				tmp_in_ptr->appendChild(tmp_ptr);
@@ -695,8 +726,8 @@ NodePtr analysis::cond_or_expr()
 
 	if ( tmp->getVal() == "||")
 	{
+		ret = ::std::make_shared<TreeNode>("||",tmp->getLineno());
 		match("||");
-		ret = ::std::make_shared<TreeNode>("||");
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::CondOrK);
 		ret->appendChild(tmp_ptr);
@@ -708,8 +739,8 @@ NodePtr analysis::cond_or_expr()
 
 			if ( tmp->getVal() == "||")
 			{
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("||",tmp->getLineno());
 				match("||");
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("||");
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::CondOrK);
 				tmp_in_ptr->appendChild(tmp_ptr);
@@ -742,8 +773,8 @@ NodePtr analysis::cond_and_expr()
 
 	if ( tmp->getVal() == "&&")
 	{
+		ret = ::std::make_shared<TreeNode>("&&",tmp->getLineno());
 		match("&&");
-		ret = ::std::make_shared<TreeNode>("&&");
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::CondAndK);
 		ret->appendChild(tmp_ptr);
@@ -755,8 +786,8 @@ NodePtr analysis::cond_and_expr()
 
 			if ( tmp->getVal() == "&&")
 			{
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("&&",tmp->getLineno());
 				match("&&");
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("&&");
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::CondAndK);
 				tmp_in_ptr->appendChild(tmp_ptr);
@@ -789,7 +820,7 @@ NodePtr analysis::equality_expr()
 
 	if ( tmp->getType() == TYPE::EQUOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -803,7 +834,7 @@ NodePtr analysis::equality_expr()
 
 			if ( tmp->getType() == TYPE::EQUOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::EquK);
@@ -837,7 +868,7 @@ NodePtr analysis::rel_expr()
 
 	if ( tmp->getType() == TYPE::RELOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -851,7 +882,7 @@ NodePtr analysis::rel_expr()
 
 			if ( tmp->getType() == TYPE::RELOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::RelK);
@@ -884,7 +915,7 @@ NodePtr analysis::additive_expr()
 
 	if ( tmp->getType() == TYPE::ADDOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -898,7 +929,7 @@ NodePtr analysis::additive_expr()
 
 			if ( tmp->getType() == TYPE::ADDOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::AdditiveK);
@@ -931,7 +962,7 @@ NodePtr analysis::multiplicative_expr()
 
 	if ( tmp->getType() == TYPE::MULOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -945,7 +976,7 @@ NodePtr analysis::multiplicative_expr()
 
 			if ( tmp->getType() == TYPE::MULOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::MulK);
@@ -981,7 +1012,7 @@ NodePtr analysis::unary_expr()
 			|| tmp->getVal() == "-"
 			|| tmp->getVal() == "!")
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::UnaryK);
 
@@ -999,7 +1030,7 @@ NodePtr analysis::unary_expr()
 			|| tmp->getVal() == "-"
 			|| tmp->getVal() == "!")
 		{
-			NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
+			NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 			tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 			tmp_in_ptr->setKind(ExprKind::UnaryK);
 
@@ -1023,23 +1054,24 @@ NodePtr analysis::primary_expr()
 #endif
 	NodePtr ret;
 
+	int lineno = tmp->getLineno();
 	if ( tmp->getType() == TYPE::NUMINT)
 	{
 		int tmp_int = numberInteger();
-		ret = ::std::make_shared<TreeNode>(tmp_int);
+		ret = ::std::make_shared<TreeNode>(tmp_int,lineno);
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::INTLITERAL);
 		ret->setType(TypeKind::IntK);
 	} else if ( tmp->getType() == TYPE::NUMFLOAT)
 	{
 		float tmp_float = numberFloat();
-		ret = ::std::make_shared<TreeNode>(tmp_float);
+		ret = ::std::make_shared<TreeNode>(tmp_float,lineno);
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::FLOATLITERAL);
 		ret->setType(TypeKind::FloatK);
 	} else if ( tmp->getType() == TYPE::NUMBOOLEAN || tmp->getType() == TYPE::STRING)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),lineno);
 
 		if ( tmp->getType() == TYPE::NUMBOOLEAN){
 			ret->setType(TypeKind::BoolK);
@@ -1054,7 +1086,7 @@ NodePtr analysis::primary_expr()
 	{
 		::std::string tmp_str = identifier();
 
-		ret = ::std::make_shared<TreeNode>(tmp_str);
+		ret = ::std::make_shared<TreeNode>(tmp_str,lineno);
 		ret->setNodeKind(NodeKind::ExprK);
 
 		if ( tmp->getVal() == "[")
@@ -1088,8 +1120,8 @@ NodePtr analysis::para_list()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in para_list\n";
 #endif
+	NodePtr ret = ::std::make_shared<TreeNode>("()",tmp->getLineno());
 	match("(");
-	NodePtr ret = ::std::make_shared<TreeNode>("()");
 	NodePtr tmp_ptr = nullptr;
 	if ( tmp->getVal() != ")")
 	{
@@ -1130,10 +1162,26 @@ NodePtr analysis::para_decl()
 			|| tmp->getType() == TYPE::BOOLEAN
 			|| tmp->getType() == TYPE::FLOAT)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal());
+		ret = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
 		ret->setNodeKind(NodeKind::DeclK);
 		ret->setKind(DeclKind::ParaK);
 
+		int tmp_type = tmp->getType();
+		switch(tmp_type)
+		{
+			case TYPE::VOID:
+				ret->setType(TypeKind::VoidK);
+				break;
+			case TYPE::INT:
+				ret->setType(TypeKind::IntK);
+				break;
+			case TYPE::FLOAT:
+				ret->setType(TypeKind::FloatK);
+				break;
+			case TYPE::BOOLEAN:
+				ret->setType(TypeKind::BoolK);
+				break;
+		}
 		match(tmp->getVal());
 	} else 
 	{
@@ -1155,8 +1203,8 @@ NodePtr analysis::arg_list()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in arg_list\n";
 #endif
+	NodePtr ret = ::std::make_shared<TreeNode>("()",tmp->getLineno());
 	match("(");
-	NodePtr ret = ::std::make_shared<TreeNode>("()");
 	NodePtr tmp_ptr = nullptr;
 	if ( tmp->getVal() != ")")
 	{
@@ -1231,5 +1279,441 @@ void analysis::printTree(const NodePtr& ptr)
 	}
 }
 
+void analysis::evalType(const NodePtr& ptr)
+{
+	if ( ptr != nullptr)
+	{
+		switch( ptr->getNodeKind())
+		{
+			case NodeKind::DeclK:
+				switch (ptr->getKind())
+				{
+					case DeclKind::FuncK:
+						evalType(ptr->getChildren().at(0));
+						ptr->setType(this->tmp_dType);
+						evalType(ptr->getChildren().at(1));
+						evalType(ptr->getChildren().at(2));
+						break;
+					case DeclKind::VarK:
+						this->tmp_dType = ptr->getType();
+						evalType(ptr->getChildren().at(0));
+						break;
+					case DeclKind::ParaK:
+						this->tmp_dType = ptr->getType();
+						evalType(ptr->getChildren().at(0));
+						if ( ptr->getSibling() != nullptr)
+						{
+							evalType(ptr->getSibling());
+						}
+						break;
+				}
+				if ( ptr->getSibling() != nullptr)
+				{
+					evalType(ptr->getSibling());
+				}
+				break;
+			case NodeKind::DeclaratorK:
+				switch(ptr->getKind())
+				{
+					case DeclaratorKind::ArrayK:
+						ptr->setType(tmp_dType+5);
+						evalType(ptr->getChildren().at(0));
+						// if the declarator is float and the initliser can be float or int
+						if ( ptr->getChildren().size() == 2)
+						{
+							evalType(ptr->getChildren().at(1));
+							if ( ptr->getChildren().at(0)->getType() != ptr->getType())
+							{
+								if ( ptr->getType() != TypeKind::FloatK)
+								{
+									auto data = ptr->getData();
+									std::cerr << "[ERROR] Incompitable type initialiser with "
+										<< "array \""
+										<< ::boost::apply_visitor(get_visitor(),data)
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								} else if ( ptr->getChildren().at(1)->getType() != FloatK
+										&& ptr->getChildren().at(1)->getType() != IntK)
+								{
+									auto data = ptr->getData();
+									std::cerr << "[ERROR] Incompitable type initialiser with "
+										<< "array \""
+										<< ::boost::apply_visitor(get_visitor(),data)
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							}
+						}
+						if ( ptr->getChildren().at(0)->getType() != TypeKind::IntK)
+						{
+							auto data = ptr->getData();
+							std::cerr << "[ERROR] Only \"int\"-value can be used init "
+								<< "array \""
+								<< ::boost::apply_visitor(get_visitor(),data)
+								<< "\" in line "
+								<< ptr->getLineno()
+								<< ::std::endl;
+							::std::exit(1);
+						} else if ( ptr->getChildSize() != 1)
+						{
+							// check if the size of initialiser is match array
+							int init_counter = 0;
+							auto tmp_ptr = ptr->getChildren().at(0);
+							while ( tmp_ptr != nullptr)
+							{
+								++init_counter;
+								tmp_ptr = tmp_ptr->getSibling();
+							}
+
+							auto data = ptr->getChildren().at(0)->getData();
+							::std::string num = ::boost::apply_visitor(get_visitor(), data);
+
+							::std::stringstream ss;
+							int act_counter = 0;
+							ss << num;
+							ss >> act_counter;
+
+							if ( act_counter == 0)
+							{
+								act_counter = init_counter;
+								ptr->getChildren().at(0)->setData(act_counter);
+							} else if ( act_counter < init_counter)
+							{
+								data = ptr->getData();
+								::std::cout << "[ERROR] Incompitable array size with initialiser with \""
+									<<  ::boost::apply_visitor(get_visitor(),data)
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+
+								::std::exit(1);
+							}
+						}
+						this->tmp_dType = ptr->getType() - 5;
+						break;
+					case DeclaratorKind::PrimitiveK:
+						ptr->setType(tmp_dType);
+						// if the declarator is float and the initliser can be float or int
+						if (ptr->getChildSize() != 0)
+						{
+							evalType(ptr->getChildren().at(0));
+							if ( ptr->getType() != TypeKind::FloatK)
+							{
+								auto data = ptr->getData();
+								std::cerr << "[ERROR] Incompitable type initialiser with "
+									<< "variable \""
+									<< ::boost::apply_visitor(get_visitor(),data)
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							} else if ( ptr->getChildren().at(0)->getType() != FloatK
+									&& ptr->getChildren().at(0)->getType() != IntK)
+							{
+								auto data = ptr->getData();
+								std::cerr << "[ERROR] Incompitable type initialiser with "
+									<< "variable \""
+									<< ::boost::apply_visitor(get_visitor(),data)
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							}
+						}
+						this->tmp_dType = ptr->getType();
+						break;
+				}
+				if ( ptr->getSibling() != nullptr)
+				{
+					evalType(ptr->getSibling());
+				}
+				break;
+			case NodeKind::InitialiserK:
+				switch(ptr->getKind())
+				{
+					case InitialiserKind::SingleK:
+						evalType(ptr->getChildren().at(0));
+						ptr->setType(this->tmp_dType);
+						break;
+					case InitialiserKind::ListK:
+						evalType(ptr->getChildren().at(0));
+						ptr->setType(this->tmp_dType+5);
+						break;
+				}
+				break;
+			case NodeKind::StmtK:
+				switch(ptr->getKind())
+				{
+					case StmtKind::ComK:
+						for (auto it: ptr->getChildren())
+						{
+							evalType(it);
+						}
+						break;
+					case StmtKind::ContinueK:
+					case StmtKind::BreakK:
+						break;
+					case StmtKind::RetK:
+						if ( ptr->getChildSize() == 0)
+						{
+							ptr->setType(TypeKind::VoidK);
+						} else 
+						{
+							evalType(ptr->getChildren().at(0));
+							ptr->setType(this->tmp_dType);
+						}
+						break;
+					case StmtKind::IfK:
+						for(auto it: ptr->getChildren())
+						{
+							evalType(it);
+						}
+						break;
+					case StmtKind::ForK:
+						for( auto it: ptr->getChildren())
+						{
+							evalType(it);
+						}
+						break;
+					case StmtKind::WhileK:
+						for( auto it: ptr->getChildren())
+						{
+							evalType(it);
+						}
+						break;
+					case StmtKind::ExpK:
+						evalType(ptr->getChildren().at(0));
+						break;
+				}
+				break;
+			case NodeKind::ExprK:
+				switch( ptr->getKind())
+				{
+					case ExprKind::BOOLLITERAL:
+						ptr->setType(TypeKind::BoolK);
+						break;
+					case ExprKind::INTLITERAL:
+						ptr->setType(TypeKind::IntK);
+						break;
+					case ExprKind::STRINGLITERAL:
+						ptr->setType(TypeKind::StringK);
+						break;
+					case ExprKind::FLOATLITERAL:
+						ptr->setType(TypeKind::FloatK);
+						break;
+					case ExprKind::RelK:
+					case ExprKind::EquK:
+					case ExprKind::CondOrK:
+					case ExprKind::CondAndK:
+						{
+							evalType(ptr->getChildren().at(0));
+							evalType(ptr->getChildren().at(1));
+
+							::std::string tmp_type1;
+							::std::string tmp_type0;
+							switch(ptr->getChildren().at(0)->getType())
+							{
+								case TypeKind::BoolK:
+									tmp_type1 = "boolean";
+									break;
+								case TypeKind::StringK:
+									tmp_type1 = "string";
+									break;
+								case TypeKind::VoidK:
+									tmp_type1 = "void";
+							}
+
+							switch(ptr->getChildren().at(1)->getType())
+							{
+								case TypeKind::BoolK:
+									tmp_type1 = "boolean";
+									break;
+								case TypeKind::StringK:
+									tmp_type1 = "string";
+									break;
+								case TypeKind::VoidK:
+									tmp_type1 = "void";
+							}
+
+							if ( ptr->getChildren().at(0)->getType()
+									== ptr->getChildren().at(1)->getType())
+							{
+								ptr->setType(TypeKind::BoolK);
+							} else if ( ptr->getChildren().at(0)->getType() == FloatK)
+							{
+
+								if ( ptr->getChildren().at(1)->getType() == IntK)
+								{
+									ptr->setType(TypeKind::BoolK);
+								} else 
+								{
+									auto data = ptr->getData();
+									::std::cerr << "[ERROR] can't convert \""
+										<< tmp_type1 
+										<< "\" to \"float\" with \""
+										<< ::boost::apply_visitor(get_visitor(), data)
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							} else 
+							{
+								auto data = ptr->getData();
+								::std::cerr << "[ERROR] can't convert \""
+									<< tmp_type1 
+									<< "\" to \""
+									<< tmp_type0
+									<< "\" with \""
+									<< ::boost::apply_visitor(get_visitor(), data)
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							}
+							break;
+						}
+					case ExprKind::MulK:
+					case ExprKind::AdditiveK:
+					case ExprKind::AssignK:
+						{
+							evalType(ptr->getChildren().at(0));
+							evalType(ptr->getChildren().at(1));
+
+							::std::string tmp_type1;
+							::std::string tmp_type0;
+							switch(ptr->getChildren().at(0)->getType())
+							{
+								case TypeKind::BoolK:
+									tmp_type1 = "boolean";
+									break;
+								case TypeKind::StringK:
+									tmp_type1 = "string";
+									break;
+								case TypeKind::VoidK:
+									tmp_type1 = "void";
+							}
+
+							switch(ptr->getChildren().at(1)->getType())
+							{
+								case TypeKind::BoolK:
+									tmp_type1 = "boolean";
+									break;
+								case TypeKind::StringK:
+									tmp_type1 = "string";
+									break;
+								case TypeKind::VoidK:
+									tmp_type1 = "void";
+							}
+
+							if ( ptr->getChildren().at(0)->getType()
+									== ptr->getChildren().at(1)->getType())
+							{
+								ptr->setType(ptr->getChildren().at(0)->getType());
+							} else if ( ptr->getChildren().at(0)->getType() == FloatK)
+							{
+
+								if ( ptr->getChildren().at(1)->getType() == IntK)
+								{
+									ptr->setType(ptr->getChildren().at(0)->getType());
+								} else 
+								{
+									auto data = ptr->getData();
+									::std::cerr << "[ERROR] can't convert \""
+										<< tmp_type1 
+										<< "\" to \"float\" with \""
+										<< ::boost::apply_visitor(get_visitor(), data)
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							} else 
+							{
+								auto data = ptr->getData();
+								::std::cerr << "[ERROR] can't convert \""
+									<< tmp_type1 
+									<< "\" to \""
+									<< tmp_type0
+									<< "\" with \""
+									<< ::boost::apply_visitor(get_visitor(), data)
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							}
+							break;
+						}
+					case ExprKind::UnaryK:
+						{
+							evalType(ptr->getChildren().at(0));
+
+							::std::string tmp_type0;
+							switch(ptr->getChildren().at(0)->getType())
+							{
+								case TypeKind::BoolK:
+									tmp_type0 = "boolean";
+									break;
+								case TypeKind::StringK:
+									tmp_type0 = "string";
+									break;
+								case TypeKind::VoidK:
+									tmp_type0 = "void";
+									break;
+								case TypeKind::IntK:
+									tmp_type0 = "int";
+									break;
+								case TypeKind::FloatK:
+									tmp_type0 = "float";
+									break;
+							}
+							auto data = ptr->getData();
+							::std::string tmp_str = ::boost::apply_visitor(get_visitor(), data);
+							if ( tmp_str == "+" || tmp_str == "-")
+							{
+								if ( ptr->getChildren().at(0)->getType() != IntK
+										&& ptr->getChildren().at(0)->getType() != FloatK)
+								{
+									::std::cerr << "[ERROR] Incompitable type \""
+										<< tmp_type0 
+										<< "\" with unary operator \"+\" or \"-\" in line"
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							} else 
+							{
+								if ( ptr->getChildren().at(0)->getType() == VoidK
+										|| ptr->getChildren().at(0)->getType() == StringK)
+								{
+									::std::cerr << "[ERROR] Incompitable type \""
+										<< tmp_type0 
+										<< "\" with unary operator \"!\" in line"
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							}
+							ptr->setType(TypeKind::BoolK);
+							break;
+						}
+					case ExprKind::BraketExp:
+						evalType(ptr->getChildren().at(0));
+						ptr->setType(ptr->getChildren().at(0)->getType());
+						break;
+					case ExprKind::IdK:
+					case ExprKind::FuncExp:
+					case ExprKind::ArrayExp:
+						break;
+				}
+				break;
+
+		}
+	}
+}
 
 }

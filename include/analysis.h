@@ -105,34 +105,6 @@ class trival
 		int size;
 };
 
-struct varTabElem
-{
-	varTabElem(::std::string varName, ::std::string type, bool isArray)
-	{
-		_varName = varName;
-		_type = type;
-		_isArray = isArray;
-	}
-
-	::std::string _varName;
-	::std::string _type;
-	bool _isArray;
-};
-
-struct funcTabElem
-{
-	funcTabElem(::std::string funcName, ::std::string type, int argc)
-	{
-		_funcName = funcName;
-		_type = type;
-		_argc = argc;
-	}
-
-	::std::string _funcName;
-	::std::string _type;
-	int _argc;
-};
-
 class analysis{
 	public:
 
@@ -203,9 +175,6 @@ class analysis{
 		
 		// semantics analyze
 		int tmp_dType;
-
-		::std::vector<varTabElem> varTab;
-		::std::vector<funcTabElem> funcTab;
 
 		// gen midcode:
 		/*

@@ -3,22 +3,25 @@
 
 namespace dh{
 
-TreeNode::TreeNode( const ::std::string& c)
+TreeNode::TreeNode( const ::std::string& c, int lineno)
 {
 	this->_data = c;
 	this->_sibling = nullptr;
+	this->_lineno = lineno;
 }
 
-TreeNode::TreeNode( const int& val)
+TreeNode::TreeNode( const int& val, int lineno)
 {
 	this->_data = val;
 	this->_sibling = nullptr;
+	this->_lineno = lineno;
 }
 
-TreeNode::TreeNode( const float& val)
+TreeNode::TreeNode( const float& val, int lineno)
 {
 	this->_data = val;
 	this->_sibling = nullptr;
+	this->_lineno = lineno;
 }
 
 void TreeNode::appendChild( const NodePtr& ptr)
@@ -89,5 +92,25 @@ void TreeNode::setStrVal( const ::std::string str)
 ::std::string TreeNode::getStrVal()
 {
 	return this->strval;
+}
+
+int TreeNode::getLineno() const
+{
+	return this->_lineno;
+}
+
+void TreeNode::setData( const int& _v)
+{
+	this->_data = _v;
+}
+
+void TreeNode::setData( const float& _v)
+{
+	this->_data = _v;
+}
+
+void TreeNode::setData( const ::std::string& _v)
+{
+	this->_data = _v;
 }
 }
