@@ -105,6 +105,34 @@ class trival
 		int size;
 };
 
+struct varTabElem
+{
+	varTabElem(::std::string varName, ::std::string type, bool isArray)
+	{
+		_varName = varName;
+		_type = type;
+		_isArray = isArray;
+	}
+
+	::std::string _varName;
+	::std::string _type;
+	bool _isArray;
+};
+
+struct funcTabElem
+{
+	funcTabElem(::std::string funcName, ::std::string type, int argc)
+	{
+		_funcName = funcName;
+		_type = type;
+		_argc = argc;
+	}
+
+	::std::string _funcName;
+	::std::string _type;
+	int _argc;
+};
+
 class analysis{
 	public:
 
@@ -112,7 +140,7 @@ class analysis{
 		NodePtr getRoot();
 		void printTree() ;
 		void initSynTree();
-		//void buildSymTab();
+		void buildSymTab();
 		//void genMidCode();
 		//void exportMidCode( const ::std::string path); 
 	private:
@@ -122,10 +150,9 @@ class analysis{
 		bool initFlag;
 
 		// compute attr of node and insert symbol to table
-		//void EvalType( const NodePtr& ptr);
 
 		// build symbol table
-		//void buildSymTab( const NodePtr& ptr);
+		void buildSymTab( const NodePtr& ptr);
 
 		//int getResult( const NodePtr& root);
 		void match( ::std::string c);
@@ -177,6 +204,9 @@ class analysis{
 		// semantics analyze
 		int tmp_dType;
 
+		::std::vector<varTabElem> varTab;
+		::std::vector<funcTabElem> funcTab;
+
 		// gen midcode:
 		/*
 		int tmp_name_counter;
@@ -188,6 +218,7 @@ class analysis{
 		::std::map< ::std::string, int> symTab;
 		::std::vector<trival> midcodes;
 		*/
+		void evalType( const NodePtr& ptr);
 
 		friend class generator;
 

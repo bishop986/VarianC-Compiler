@@ -15,7 +15,7 @@ analysis::analysis( scanner tokens)
 	this->layer_record = 0;
 	this->_tokens = tokens;
 	this->_root = nullptr;
-	this->tmp = ::std::make_shared<token>("", TYPE::NONES, layer_record);
+	this->tmp = ::std::make_shared<token>("", TYPE::NONES, 0);
 	initFlag = false;
 
 #ifdef _DEBUG_
@@ -224,11 +224,11 @@ NodePtr analysis::func_decl()
 	::std::cout << "[DEBUG] in func_decl, get type " << tmp->getVal() << ::std::endl;
 #endif
 	
-	NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp->getVal(), layer_record);
+	NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
 	match(tmp->getVal());
 
 	::std::string tmp_str = identifier();
-	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str, layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str);
 	ret->setNodeKind(NodeKind::DeclK);
 	ret->setKind(DeclKind::FuncK);
 	ret->appendChild(tmp_ptr);
@@ -249,7 +249,7 @@ NodePtr analysis::var_decl()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in var_decl\n";
 #endif
-	NodePtr ret = ::std::make_shared<TreeNode>(tmp->getVal(), layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>(tmp->getVal());
 	match(tmp->getVal());
 	ret->setNodeKind(NodeKind::DeclK);
 	ret->setKind(DeclKind::VarK);
@@ -305,19 +305,23 @@ NodePtr analysis::declarator()
 	::std::cout << "[DEBUG] in declarator\n";
 #endif
 	::std::string tmp_str = identifier();
-	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str, layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>(tmp_str);
 	ret->setNodeKind(NodeKind::DeclaratorK);
 
 	if ( tmp->getVal() == "[")
 	{
 		match("[");
 		int tmp_int = numberInteger();
-		NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp_int, layer_record);
+		NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp_int);
 		tmp_ptr->setNodeKind(NodeKind::ExprK);
 		tmp_ptr->setKind(ExprKind::INTLITERAL);
 		tmp_ptr->setType(TypeKind::IntK);
 		match("]");
+		ret->setKind(DeclaratorKind::ArrayK);
 		ret->appendChild(tmp_ptr);
+	} else 
+	{
+		ret->setKind(DeclaratorKind::PrimitiveK);
 	}
 
 	return ret;
@@ -329,7 +333,7 @@ NodePtr analysis::initialiser()
 	::std::cout << "[DEBUG] in initialiser\n";
 #endif
 
-	NodePtr ret = ::std::make_shared<TreeNode>("=",layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("=");
 	ret->setNodeKind(NodeKind::InitialiserK);
 	NodePtr tmp_ptr;
 
@@ -362,7 +366,7 @@ NodePtr analysis::compound_stmt()
 #ifdef _DEBGU_
 	::std::cout << "[DEBUG] in compound_stmt \n";
 #endif
-	NodePtr ret = ::std::make_shared<TreeNode>("{}", layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("{}");
 	NodePtr tmp_ptr = nullptr;
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::ComK);
@@ -470,7 +474,7 @@ NodePtr analysis::if_stmt()
 	::std::cout << "[DEBUG] in if_stmt\n";
 #endif
 	match("if");
-	NodePtr ret = ::std::make_shared<TreeNode>("if",layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("if");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::IfK);
 
@@ -497,7 +501,7 @@ NodePtr analysis::for_stmt()
 	::std::cout << "[DEBUG] in for_stmt\n";
 #endif
 	match("for");
-	NodePtr ret= ::std::make_shared<TreeNode>("for", layer_record);
+	NodePtr ret= ::std::make_shared<TreeNode>("for");
 	NodePtr tmp_ptr;
 
 	ret->setNodeKind(NodeKind::StmtK);
@@ -539,7 +543,7 @@ NodePtr analysis::while_stmt()
 #endif
 	match("while");
 
-	NodePtr ret = ::std::make_shared<TreeNode>("while",layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("while");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::WhileK);
 
@@ -561,7 +565,7 @@ NodePtr analysis::break_stmt()
 #endif
 
 	match("break");
-	NodePtr ret = ::std::make_shared<TreeNode>("break", layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("break");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::BreakK);
 	match(";");
@@ -575,7 +579,7 @@ NodePtr analysis::continue_stmt()
 	::std::cout << "[DEBUG] in continue_stmt\n";
 #endif
 	match("continue");
-	NodePtr ret = ::std::make_shared<TreeNode>("continue",layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("continue");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::ContinueK);
 
@@ -590,7 +594,7 @@ NodePtr analysis::return_stmt()
 	::std::cout << "[DEBUG] in return_stmt\n";
 #endif
 	match("return");
-	NodePtr ret = ::std::make_shared<TreeNode>("return",layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("return");
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::RetK);
 
@@ -609,7 +613,7 @@ NodePtr analysis::expr_stmt()
 #ifdef _DEBUG_
 	::std::cout << "[DEBUG] in expr_stmt\n";
 #endif
-	NodePtr ret = ::std::make_shared<TreeNode>("Expr", layer_record);
+	NodePtr ret = ::std::make_shared<TreeNode>("Expr");
 
 	ret->setNodeKind(NodeKind::StmtK);
 	ret->setKind(StmtKind::ExpK);
@@ -645,7 +649,7 @@ NodePtr analysis::assignment_expr()
 	if ( tmp->getVal() == "=")
 	{
 		match("=");
-		ret = ::std::make_shared<TreeNode>("=",layer_record);
+		ret = ::std::make_shared<TreeNode>("=");
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::AssignK);
 		ret->appendChild(tmp_ptr);
@@ -658,7 +662,7 @@ NodePtr analysis::assignment_expr()
 			if ( tmp->getVal() == "=")
 			{
 				match("=");
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("=",layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("=");
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::AssignK);
 				tmp_in_ptr->appendChild(tmp_ptr);
@@ -692,7 +696,7 @@ NodePtr analysis::cond_or_expr()
 	if ( tmp->getVal() == "||")
 	{
 		match("||");
-		ret = ::std::make_shared<TreeNode>("||",layer_record);
+		ret = ::std::make_shared<TreeNode>("||");
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::CondOrK);
 		ret->appendChild(tmp_ptr);
@@ -705,7 +709,7 @@ NodePtr analysis::cond_or_expr()
 			if ( tmp->getVal() == "||")
 			{
 				match("||");
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("||",layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("||");
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::CondOrK);
 				tmp_in_ptr->appendChild(tmp_ptr);
@@ -739,7 +743,7 @@ NodePtr analysis::cond_and_expr()
 	if ( tmp->getVal() == "&&")
 	{
 		match("&&");
-		ret = ::std::make_shared<TreeNode>("&&",layer_record);
+		ret = ::std::make_shared<TreeNode>("&&");
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::CondAndK);
 		ret->appendChild(tmp_ptr);
@@ -752,7 +756,7 @@ NodePtr analysis::cond_and_expr()
 			if ( tmp->getVal() == "&&")
 			{
 				match("&&");
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("&&",layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>("&&");
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::CondAndK);
 				tmp_in_ptr->appendChild(tmp_ptr);
@@ -785,7 +789,7 @@ NodePtr analysis::equality_expr()
 
 	if ( tmp->getType() == TYPE::EQUOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -799,7 +803,7 @@ NodePtr analysis::equality_expr()
 
 			if ( tmp->getType() == TYPE::EQUOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::EquK);
@@ -833,7 +837,7 @@ NodePtr analysis::rel_expr()
 
 	if ( tmp->getType() == TYPE::RELOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -847,7 +851,7 @@ NodePtr analysis::rel_expr()
 
 			if ( tmp->getType() == TYPE::RELOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::RelK);
@@ -880,7 +884,7 @@ NodePtr analysis::additive_expr()
 
 	if ( tmp->getType() == TYPE::ADDOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -894,7 +898,7 @@ NodePtr analysis::additive_expr()
 
 			if ( tmp->getType() == TYPE::ADDOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::AdditiveK);
@@ -927,7 +931,7 @@ NodePtr analysis::multiplicative_expr()
 
 	if ( tmp->getType() == TYPE::MULOP)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 		match(tmp->getVal());
 
 		ret->setNodeKind(NodeKind::ExprK);
@@ -941,7 +945,7 @@ NodePtr analysis::multiplicative_expr()
 
 			if ( tmp->getType() == TYPE::MULOP)
 			{
-				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+				NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::MulK);
@@ -977,7 +981,7 @@ NodePtr analysis::unary_expr()
 			|| tmp->getVal() == "-"
 			|| tmp->getVal() == "!")
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::UnaryK);
 
@@ -995,7 +999,7 @@ NodePtr analysis::unary_expr()
 			|| tmp->getVal() == "-"
 			|| tmp->getVal() == "!")
 		{
-			NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+			NodePtr tmp_in_ptr = ::std::make_shared<TreeNode>(tmp->getVal());
 			tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 			tmp_in_ptr->setKind(ExprKind::UnaryK);
 
@@ -1022,20 +1026,20 @@ NodePtr analysis::primary_expr()
 	if ( tmp->getType() == TYPE::NUMINT)
 	{
 		int tmp_int = numberInteger();
-		ret = ::std::make_shared<TreeNode>(tmp_int,layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp_int);
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::INTLITERAL);
 		ret->setType(TypeKind::IntK);
 	} else if ( tmp->getType() == TYPE::NUMFLOAT)
 	{
 		float tmp_float = numberFloat();
-		ret = ::std::make_shared<TreeNode>(tmp_float,layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp_float);
 		ret->setNodeKind(NodeKind::ExprK);
 		ret->setKind(ExprKind::FLOATLITERAL);
 		ret->setType(TypeKind::FloatK);
 	} else if ( tmp->getType() == TYPE::NUMBOOLEAN || tmp->getType() == TYPE::STRING)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 
 		if ( tmp->getType() == TYPE::NUMBOOLEAN){
 			ret->setType(TypeKind::BoolK);
@@ -1050,7 +1054,7 @@ NodePtr analysis::primary_expr()
 	{
 		::std::string tmp_str = identifier();
 
-		ret = ::std::make_shared<TreeNode>(tmp_str,layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp_str);
 		ret->setNodeKind(NodeKind::ExprK);
 
 		if ( tmp->getVal() == "[")
@@ -1085,11 +1089,13 @@ NodePtr analysis::para_list()
 	::std::cout << "[DEBUG] in para_list\n";
 #endif
 	match("(");
-	NodePtr ret = nullptr;
+	NodePtr ret = ::std::make_shared<TreeNode>("()");
+	NodePtr tmp_ptr = nullptr;
 	if ( tmp->getVal() != ")")
 	{
-		ret = proper_para_list();
+		tmp_ptr = proper_para_list();
 	}
+	ret->appendChild(tmp_ptr);
 	match(")");
 	return ret;
 }
@@ -1124,7 +1130,7 @@ NodePtr analysis::para_decl()
 			|| tmp->getType() == TYPE::BOOLEAN
 			|| tmp->getType() == TYPE::FLOAT)
 	{
-		ret = ::std::make_shared<TreeNode>(tmp->getVal(),layer_record);
+		ret = ::std::make_shared<TreeNode>(tmp->getVal());
 		ret->setNodeKind(NodeKind::DeclK);
 		ret->setKind(DeclKind::ParaK);
 
@@ -1150,11 +1156,13 @@ NodePtr analysis::arg_list()
 	::std::cout << "[DEBUG] in arg_list\n";
 #endif
 	match("(");
-	NodePtr ret = nullptr;
+	NodePtr ret = ::std::make_shared<TreeNode>("()");
+	NodePtr tmp_ptr = nullptr;
 	if ( tmp->getVal() != ")")
 	{
-		ret = proper_arg_list();
+		tmp_ptr = proper_arg_list();
 	}
+	ret->appendChild(tmp_ptr);
 	match(")");
 	return ret;
 }
@@ -1205,7 +1213,7 @@ void analysis::printTree(const NodePtr& ptr)
 			::std::cout << "  ";
 		}
 		auto data = ptr->getData();
-		::std::cout << ::boost::apply_visitor(get_visitor(),data) << "_" << ptr->getLevel() << ::std::endl;
+		::std::cout << ::boost::apply_visitor(get_visitor(),data) << ::std::endl;
 		for( auto it: ptr->getChildren())
 		{
 			layer_record++;
@@ -1222,5 +1230,6 @@ void analysis::printTree(const NodePtr& ptr)
 		printTree(ptr->getSibling());
 	}
 }
+
 
 }
