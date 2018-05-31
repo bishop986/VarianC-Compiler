@@ -11,6 +11,7 @@
 #include "scan.h"
 #include "global.h"
 #include "syntax_treenode.h"
+#include "symbol_table.h"
 #include <map>
 #include <sstream>
 #include <boost/shared_ptr.hpp>
@@ -112,7 +113,6 @@ class analysis{
 		NodePtr getRoot();
 		void printTree() ;
 		void initSynTree();
-		void buildSymTab();
 		//void genMidCode();
 		//void exportMidCode( const ::std::string path); 
 	private:
@@ -123,8 +123,8 @@ class analysis{
 
 		// compute attr of node and insert symbol to table
 
-		// build symbol table
-		void buildSymTab( const NodePtr& ptr);
+		// current area symbol table
+		::std::shared_ptr<symTab> current_tab;
 
 		//int getResult( const NodePtr& root);
 		void match( ::std::string c);
@@ -175,6 +175,7 @@ class analysis{
 		
 		// semantics analyze
 		int tmp_dType;
+		int current_stmt;
 
 		// gen midcode:
 		/*
