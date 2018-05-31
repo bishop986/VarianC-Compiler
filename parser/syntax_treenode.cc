@@ -8,6 +8,7 @@ TreeNode::TreeNode( const ::std::string& c, int lineno)
 	this->_data = c;
 	this->_sibling = nullptr;
 	this->_lineno = lineno;
+	this->_type = -1;
 }
 
 TreeNode::TreeNode( const int& val, int lineno)
@@ -15,6 +16,7 @@ TreeNode::TreeNode( const int& val, int lineno)
 	this->_data = val;
 	this->_sibling = nullptr;
 	this->_lineno = lineno;
+	this->_type = -1;
 }
 
 TreeNode::TreeNode( const float& val, int lineno)
@@ -22,6 +24,7 @@ TreeNode::TreeNode( const float& val, int lineno)
 	this->_data = val;
 	this->_sibling = nullptr;
 	this->_lineno = lineno;
+	this->_type = -1;
 }
 
 void TreeNode::appendChild( const NodePtr& ptr)

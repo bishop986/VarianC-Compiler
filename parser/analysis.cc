@@ -17,6 +17,7 @@ analysis::analysis( scanner tokens)
 	this->_root = nullptr;
 	this->tmp = ::std::make_shared<token>("", TYPE::NONES, 0);
 	initFlag = false;
+	this->current_stmt = -1;
 
 #ifdef _DEBUG_
 	assert(_tokens.isScanned());
@@ -37,6 +38,19 @@ void analysis::initSynTree()
 	*tmp = _tokens.getToken();
 	this->_root = program();
 	initFlag = true;
+
+	symNodePtr tmp1( new symTabElem);
+	tmp1->nametype = 'f';
+	tmp1->name = "putIntLn";
+	tmp1->datatype = TypeKind::VoidK;
+	tmp1->args.push_back(TypeKind::IntK);
+
+	this->current_tab = ::std::shared_ptr<symTab>(
+			new symTab(""));
+
+	current_tab->insert_elem(tmp1);
+
+	evalType(_root);
 }
 
 NodePtr analysis::getRoot()
@@ -180,7 +194,7 @@ NodePtr analysis::program()
 			*tmp = _tokens.getToken();
 			ret = func_decl();
 		}
-		evalType(ret);
+		//evalType(ret);
 	}
 
 	NodePtr tmp_cur_ptr = ret;
@@ -211,7 +225,7 @@ NodePtr analysis::program()
 			*tmp = _tokens.getToken();
 			tmp_in_ptr = func_decl();
 		}
-		evalType(tmp_in_ptr);
+		//evalType(tmp_in_ptr);
 
 		tmp_cur_ptr->setSibling( tmp_in_ptr);
 		tmp_cur_ptr = tmp_in_ptr;
@@ -227,6 +241,27 @@ NodePtr analysis::func_decl()
 #endif
 	
 	NodePtr tmp_ptr = ::std::make_shared<TreeNode>(tmp->getVal(),tmp->getLineno());
+	if ( tmp->getVal() == "int")
+	{
+		tmp_ptr->setType(TypeKind::IntK);
+	} else if ( tmp->getVal() == "float")
+	{
+		tmp_ptr->setType(TypeKind::FloatK); 
+	} else if ( tmp->getVal() == "void")
+	{
+		tmp_ptr->setType(TypeKind::VoidK);
+	} else if (tmp->getVal() == "boolean")
+	{
+		tmp_ptr->setType(TypeKind::BoolK);
+	} else 
+	{
+		::std::cerr << "[ERROR] Unexpected type \""
+			<< tmp->getVal() 
+			<< "\" in line "
+			<< tmp->getLineno()
+			<< ::std::endl;
+		::std::exit(1);
+	}
 	match(tmp->getVal());
 
 	int lineno = tmp->getLineno();
@@ -265,10 +300,18 @@ NodePtr analysis::var_decl()
 	{
 		match("float");
 		ret->setType(TypeKind::FloatK);
-	} else 
+	} else if ( tmp->getVal() == "void")
 	{
 		match("void");
 		ret->setType(TypeKind::VoidK);
+	} else 
+	{
+		::std::cerr << "[ERROR] Unexpected type \""
+			<< tmp->getVal()
+			<< "\" in line "
+			<< tmp->getLineno()
+			<< ::std::endl;
+		::std::exit(1);
 	}
 	ret->setNodeKind(NodeKind::DeclK);
 	ret->setKind(DeclKind::VarK);
@@ -1261,7 +1304,24 @@ void analysis::printTree(const NodePtr& ptr)
 			::std::cout << "  ";
 		}
 		auto data = ptr->getData();
-		::std::cout << ::boost::apply_visitor(get_visitor(),data) << ::std::endl;
+		int tmp_type = ptr->getType();
+		::std::string tmp_str;
+		switch(tmp_type)
+		{
+			case TypeKind::IntK:
+				tmp_str = "int";
+				break;
+			case TypeKind::BoolK:
+				tmp_str = "boolean";
+				break;
+			case TypeKind::FloatK:
+				tmp_str = "float";
+				break;
+			case TypeKind::VoidK:
+				tmp_str = "void";
+				break;
+		}
+		::std::cout << ::boost::apply_visitor(get_visitor(),data) << "_" << tmp_str <<::std::endl;
 		for( auto it: ptr->getChildren())
 		{
 			layer_record++;
@@ -1289,23 +1349,78 @@ void analysis::evalType(const NodePtr& ptr)
 				switch (ptr->getKind())
 				{
 					case DeclKind::FuncK:
-						evalType(ptr->getChildren().at(0));
-						ptr->setType(this->tmp_dType);
-						evalType(ptr->getChildren().at(1));
-						evalType(ptr->getChildren().at(2));
-						break;
+						{
+							ptr->setType(ptr->getChildren().at(0)->getType());
+
+							if ( current_tab == nullptr)
+							{
+								current_tab = ::std::shared_ptr<symTab>(new symTab
+										(""));
+							}
+							symNodePtr tmp_node(new symTabElem);
+
+							auto data = ptr->getData();
+							tmp_node->name = ::boost::apply_visitor(get_visitor(), data);
+							tmp_node->nametype = 'f';
+							tmp_node->datatype = ptr->getType();
+
+							if ( current_tab->research_elem(tmp_node->name) != nullptr)
+							{
+								::std::cerr << "[ERROR] duplicate defination of \""
+									<< tmp_node->name
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+
+								::std::exit(1);
+							}
+
+							// enter sub area
+							::std::shared_ptr<symTab> newTab(
+									new symTab(tmp_node->name));
+
+							newTab->set_upper_tab(current_tab);
+							current_tab->append_down_tab(newTab);
+							current_tab = newTab;
+
+							if ( ptr->getChildren()[1]->getChildren()[0] != nullptr)
+							{
+								evalType(ptr->getChildren().at(1)->getChildren()[0]);
+							}
+							current_tab = current_tab->get_upptr_tab();
+
+							// exit sub area and insert function into table
+							auto tmp_ptr = ptr->getChildren()[1]->getChildren()[0];
+							while ( tmp_ptr != nullptr)
+							{
+								tmp_node->args.push_back(tmp_ptr->getType());
+								tmp_ptr = tmp_ptr->getSibling();
+							}
+							current_tab->insert_elem(tmp_node);
+
+							// enter again
+							current_tab = newTab;
+							evalType(ptr->getChildren().at(2));
+							current_tab = current_tab->get_upptr_tab();
+							// exit sub area
+
+							break;
+						}
 					case DeclKind::VarK:
 						this->tmp_dType = ptr->getType();
 						evalType(ptr->getChildren().at(0));
 						break;
 					case DeclKind::ParaK:
-						this->tmp_dType = ptr->getType();
-						evalType(ptr->getChildren().at(0));
-						if ( ptr->getSibling() != nullptr)
 						{
-							evalType(ptr->getSibling());
+							this->tmp_dType = ptr->getType();
+							evalType(ptr->getChildren().at(0));
+
+							if ( ptr->getSibling() != nullptr)
+							{
+								evalType(ptr->getSibling());
+							}
+							break;
 						}
-						break;
 				}
 				if ( ptr->getSibling() != nullptr)
 				{
@@ -1316,116 +1431,195 @@ void analysis::evalType(const NodePtr& ptr)
 				switch(ptr->getKind())
 				{
 					case DeclaratorKind::ArrayK:
-						ptr->setType(tmp_dType+5);
-						evalType(ptr->getChildren().at(0));
-						// if the declarator is float and the initliser can be float or int
-						if ( ptr->getChildren().size() == 2)
 						{
-							evalType(ptr->getChildren().at(1));
-							if ( ptr->getChildren().at(0)->getType() != ptr->getType())
+							ptr->setType(tmp_dType+5);
+							auto data = ptr->getData();
+							auto vname = ::boost::apply_visitor(get_visitor(), data);
+							symNodePtr tmp_node(new symTabElem);
+
+							tmp_node->name = vname;
+							tmp_node->nametype = 'a';
+							tmp_node->datatype = ptr->getType();
+
+							if ( current_tab->research_elem(vname) != nullptr)
 							{
-								if ( ptr->getType() != TypeKind::FloatK)
+								::std::cerr << "[ERROR] dupilcate defination of \""
+									<< vname
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+
+								::std::exit(1);
+							}
+							current_tab->insert_elem(tmp_node);
+
+							evalType(ptr->getChildren().at(0));
+							// if the declarator is float and the initliser can be float or int
+							if ( ptr->getChildren().size() == 2)
+							{
+								evalType(ptr->getChildren().at(1));
+								if ( ptr->getChildren().at(0)->getType() != ptr->getType())
 								{
-									auto data = ptr->getData();
-									std::cerr << "[ERROR] Incompitable type initialiser with "
-										<< "array \""
-										<< ::boost::apply_visitor(get_visitor(),data)
+									if ( ptr->getType() != TypeKind::FloatK)
+									{
+										std::cerr << "[ERROR] Incompitable type initialiser with "
+											<< "array \""
+											<< vname
+											<< "\" in line "
+											<< ptr->getLineno()
+											<< ::std::endl;
+										::std::exit(1);
+									} else if ( ptr->getChildren().at(1)->getType() != FloatK
+											&& ptr->getChildren().at(1)->getType() != IntK)
+									{
+										std::cerr << "[ERROR] Incompitable type initialiser with "
+											<< "array \""
+											<< vname
+											<< "\" in line "
+											<< ptr->getLineno()
+											<< ::std::endl;
+										::std::exit(1);
+									}
+								}
+							}
+							if ( ptr->getChildren().at(0)->getType() != TypeKind::IntK)
+							{
+								std::cerr << "[ERROR] Only \"int\"-value can be used init "
+									<< "array \""
+									<< vname
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							} else if ( ptr->getChildSize() != 1)
+							{
+								// check if the size of initialiser is match array
+								int init_counter = 0;
+								auto tmp_ptr = ptr->getChildren().at(1);
+								while ( tmp_ptr != nullptr)
+								{
+									++init_counter;
+									tmp_ptr = tmp_ptr->getSibling();
+								}
+
+								auto data = ptr->getChildren().at(1)->getData();
+								::std::string num = ::boost::apply_visitor(get_visitor(), data);
+
+								::std::stringstream ss;
+								int act_counter = 0;
+								ss << num;
+								ss >> act_counter;
+
+								if ( act_counter == 0)
+								{
+									act_counter = init_counter;
+									ptr->getChildren().at(0)->setData(act_counter);
+								} else if ( act_counter < init_counter)
+								{
+									data = ptr->getData();
+									::std::cout << "[ERROR] Incompitable array size with initialiser with \""
+										<<  ::boost::apply_visitor(get_visitor(),data)
 										<< "\" in line "
 										<< ptr->getLineno()
 										<< ::std::endl;
-									::std::exit(1);
-								} else if ( ptr->getChildren().at(1)->getType() != FloatK
-										&& ptr->getChildren().at(1)->getType() != IntK)
-								{
-									auto data = ptr->getData();
-									std::cerr << "[ERROR] Incompitable type initialiser with "
-										<< "array \""
-										<< ::boost::apply_visitor(get_visitor(),data)
-										<< "\" in line "
-										<< ptr->getLineno()
-										<< ::std::endl;
+
 									::std::exit(1);
 								}
 							}
+							this->tmp_dType = ptr->getType() - 5;
+							break;
 						}
-						if ( ptr->getChildren().at(0)->getType() != TypeKind::IntK)
-						{
-							auto data = ptr->getData();
-							std::cerr << "[ERROR] Only \"int\"-value can be used init "
-								<< "array \""
-								<< ::boost::apply_visitor(get_visitor(),data)
-								<< "\" in line "
-								<< ptr->getLineno()
-								<< ::std::endl;
-							::std::exit(1);
-						} else if ( ptr->getChildSize() != 1)
-						{
-							// check if the size of initialiser is match array
-							int init_counter = 0;
-							auto tmp_ptr = ptr->getChildren().at(0);
-							while ( tmp_ptr != nullptr)
-							{
-								++init_counter;
-								tmp_ptr = tmp_ptr->getSibling();
-							}
-
-							auto data = ptr->getChildren().at(0)->getData();
-							::std::string num = ::boost::apply_visitor(get_visitor(), data);
-
-							::std::stringstream ss;
-							int act_counter = 0;
-							ss << num;
-							ss >> act_counter;
-
-							if ( act_counter == 0)
-							{
-								act_counter = init_counter;
-								ptr->getChildren().at(0)->setData(act_counter);
-							} else if ( act_counter < init_counter)
-							{
-								data = ptr->getData();
-								::std::cout << "[ERROR] Incompitable array size with initialiser with \""
-									<<  ::boost::apply_visitor(get_visitor(),data)
-									<< "\" in line "
-									<< ptr->getLineno()
-									<< ::std::endl;
-
-								::std::exit(1);
-							}
-						}
-						this->tmp_dType = ptr->getType() - 5;
-						break;
 					case DeclaratorKind::PrimitiveK:
-						ptr->setType(tmp_dType);
-						// if the declarator is float and the initliser can be float or int
-						if (ptr->getChildSize() != 0)
 						{
-							evalType(ptr->getChildren().at(0));
-							if ( ptr->getType() != TypeKind::FloatK)
+							ptr->setType(tmp_dType);
+							auto data = ptr->getData();
+							auto vname = ::boost::apply_visitor(get_visitor(), data);
+
+							symNodePtr tmp_node(new symTabElem);
+							tmp_node->name = vname;
+							tmp_node->nametype = 'v';
+							tmp_node->datatype = ptr->getType();
+
+							if ( current_tab->research_elem(vname) != nullptr)
 							{
-								auto data = ptr->getData();
-								std::cerr << "[ERROR] Incompitable type initialiser with "
-									<< "variable \""
-									<< ::boost::apply_visitor(get_visitor(),data)
+								::std::cerr << "[ERROR] dupilcate defination of \""
+									<< vname
 									<< "\" in line "
 									<< ptr->getLineno()
 									<< ::std::endl;
-								::std::exit(1);
-							} else if ( ptr->getChildren().at(0)->getType() != FloatK
-									&& ptr->getChildren().at(0)->getType() != IntK)
-							{
-								auto data = ptr->getData();
-								std::cerr << "[ERROR] Incompitable type initialiser with "
-									<< "variable \""
-									<< ::boost::apply_visitor(get_visitor(),data)
-									<< "\" in line "
-									<< ptr->getLineno()
-									<< ::std::endl;
+
 								::std::exit(1);
 							}
+							current_tab->insert_elem(tmp_node);
+
+							// if the declarator is float and the initliser can be float or int
+							if (ptr->getChildSize() != 0)
+							{
+								evalType(ptr->getChildren().at(0));
+
+								::std::string tmp_str1;
+								::std::string tmp_str2;
+								switch(ptr->getType())
+								{
+									case TypeKind::VoidK:
+										tmp_str1 = "void";
+										break;
+									case TypeKind::IntK:
+										tmp_str1 = "int";
+										break;
+									case TypeKind::FloatK:
+										tmp_str1 = "float";
+										break;
+									case TypeKind::BoolK:
+										tmp_str1 = "boolean";
+										break;
+								}
+								switch(ptr->getChildren().at(0)->getType())
+								{
+									case TypeKind::VoidK:
+										tmp_str2 = "void";
+										break;
+									case TypeKind::IntK:
+										tmp_str2 = "int";
+										break;
+									case TypeKind::FloatK:
+										tmp_str2 = "float";
+										break;
+									case TypeKind::BoolK:
+										tmp_str2 = "boolean";
+										break;
+								}
+								if ( ptr->getType() != ptr->getChildren().at(0)->getType())
+								{
+									if ( ptr->getType() != TypeKind::FloatK)
+									{
+										std::cerr << "[ERROR] Incompitable type \""
+											<< tmp_str2
+											<< "\" initialiser with "
+											<< "variable \""
+											<< vname
+											<< "\" type \""
+											<< tmp_str1
+											<< "\" in line "
+											<< ptr->getLineno()
+											<< ::std::endl;
+										::std::exit(1);
+									} else if ( ptr->getChildren().at(0)->getType() != FloatK
+											&& ptr->getChildren().at(0)->getType() != IntK)
+									{
+										std::cerr << "[ERROR] Incompitable type initialiser with "
+											<< "variable \""
+											<< vname
+											<< "\" in line "
+											<< ptr->getLineno()
+											<< ::std::endl;
+										::std::exit(1);
+									}
+								}
+							}
+							this->tmp_dType = ptr->getType();
+							break;
 						}
-						this->tmp_dType = ptr->getType();
-						break;
 				}
 				if ( ptr->getSibling() != nullptr)
 				{
@@ -1437,57 +1631,149 @@ void analysis::evalType(const NodePtr& ptr)
 				{
 					case InitialiserKind::SingleK:
 						evalType(ptr->getChildren().at(0));
-						ptr->setType(this->tmp_dType);
+						ptr->setType(ptr->getChildren().at(0)->getType());
 						break;
 					case InitialiserKind::ListK:
 						evalType(ptr->getChildren().at(0));
-						ptr->setType(this->tmp_dType+5);
+						ptr->setType(ptr->getChildren().at(0)->getType());
 						break;
+				}
+				if ( ptr->getSibling() != nullptr)
+				{
+					evalType(ptr->getSibling());
 				}
 				break;
 			case NodeKind::StmtK:
 				switch(ptr->getKind())
 				{
 					case StmtKind::ComK:
-						for (auto it: ptr->getChildren())
 						{
-							evalType(it);
+							::std::shared_ptr<symTab> newTab(
+									new symTab( current_tab->get_in_function()));
+							newTab->set_upper_tab(current_tab);
+							current_tab->append_down_tab(newTab);
+							current_tab = newTab;
+
+							for (auto it: ptr->getChildren())
+							{
+								evalType(it);
+							}
+
+							current_tab = current_tab->get_upptr_tab();
+							break;
 						}
-						break;
 					case StmtKind::ContinueK:
 					case StmtKind::BreakK:
+						if ( this->current_stmt != StmtKind::WhileK
+								&& this->current_stmt != StmtKind::ForK)
+						{
+							::std::cerr << "[ERROR] expected-unqulified id in line "
+								<< ptr->getLineno()
+								<< ::std::endl;
+							::std::exit(1);
+						}
 						break;
 					case StmtKind::RetK:
-						if ( ptr->getChildSize() == 0)
 						{
-							ptr->setType(TypeKind::VoidK);
-						} else 
-						{
-							evalType(ptr->getChildren().at(0));
-							ptr->setType(this->tmp_dType);
+							if ( ptr->getChildSize() == 0)
+							{
+								ptr->setType(TypeKind::VoidK);
+							} else 
+							{
+								evalType(ptr->getChildren().at(0));
+								ptr->setType(this->tmp_dType);
+							}
+							auto tmp_node 
+								= current_tab->research_elem_global(
+										current_tab->get_in_function());
+
+							::std::string tmp_str1;
+							::std::string tmp_str2;
+							switch(ptr->getType())
+							{
+								case TypeKind::VoidK:
+									tmp_str1 = "void";
+									break;
+								case TypeKind::IntK:
+									tmp_str1 = "int";
+									break;
+								case TypeKind::FloatK:
+									tmp_str1 = "float";
+									break;
+								case TypeKind::BoolK:
+									tmp_str1 = "boolean";
+									break;
+							}
+							switch(tmp_node->datatype)
+							{
+								case TypeKind::VoidK:
+									tmp_str2 = "void";
+									break;
+								case TypeKind::IntK:
+									tmp_str2 = "int";
+									break;
+								case TypeKind::FloatK:
+									tmp_str2 = "float";
+									break;
+								case TypeKind::BoolK:
+									tmp_str2 = "boolean";
+									break;
+							}
+							if ( ptr->getType() != tmp_node->datatype)
+							{
+								::std::cerr << "[ERROR] unmatch return type \""
+									<< tmp_str1
+									<< "\" in function \""
+									<< tmp_node->name
+									<< "\" expect \""
+									<< tmp_str2
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+
+								::std::exit(1);
+							}
+							break;
 						}
-						break;
 					case StmtKind::IfK:
-						for(auto it: ptr->getChildren())
 						{
-							evalType(it);
+							current_stmt = StmtKind::IfK;
+
+							for(auto it: ptr->getChildren())
+							{
+								evalType(it);
+							}
+							current_tab = current_tab->get_upptr_tab();
+							current_stmt = -1;
+							break;
 						}
-						break;
 					case StmtKind::ForK:
-						for( auto it: ptr->getChildren())
 						{
-							evalType(it);
+							current_stmt = StmtKind::ForK;
+							for( auto it: ptr->getChildren())
+							{
+								evalType(it);
+							}
+							current_stmt = -1;
+							break;
 						}
-						break;
 					case StmtKind::WhileK:
-						for( auto it: ptr->getChildren())
 						{
-							evalType(it);
+							current_stmt = StmtKind::WhileK;
+							for( auto it: ptr->getChildren())
+							{
+								evalType(it);
+							}
+							current_stmt = -1;
+							break;
 						}
-						break;
 					case StmtKind::ExpK:
 						evalType(ptr->getChildren().at(0));
 						break;
+				}
+				if ( ptr->getSibling() != nullptr)
+				{
+					evalType(ptr->getSibling());
 				}
 				break;
 			case NodeKind::ExprK:
@@ -1672,7 +1958,8 @@ void analysis::evalType(const NodePtr& ptr)
 									break;
 							}
 							auto data = ptr->getData();
-							::std::string tmp_str = ::boost::apply_visitor(get_visitor(), data);
+							::std::string tmp_str = 
+								::boost::apply_visitor(get_visitor(), data);
 							if ( tmp_str == "+" || tmp_str == "-")
 							{
 								if ( ptr->getChildren().at(0)->getType() != IntK
@@ -1702,16 +1989,181 @@ void analysis::evalType(const NodePtr& ptr)
 							break;
 						}
 					case ExprKind::BraketExp:
-						evalType(ptr->getChildren().at(0));
-						ptr->setType(ptr->getChildren().at(0)->getType());
-						break;
+						{
+							evalType(ptr->getChildren().at(0));
+							ptr->setType(ptr->getChildren().at(0)->getType());
+							break;
+						}
 					case ExprKind::IdK:
+						{
+							auto data = ptr->getData();
+							::std::string name = ::boost::apply_visitor(get_visitor(), data);
+							auto tmp_node = this->current_tab->research_elem_global(name);
+							if ( tmp_node == nullptr)
+							{
+								::std::cerr << "[ERROR] Unknown token \""
+									<< name
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							} else 
+							{
+								::std::string tmp_str;
+								switch(tmp_node->nametype)
+								{
+									case 'i':
+										tmp_str = "identifier";
+										break;
+									case 'a':
+										tmp_str = "array";
+										break;
+									case 'f':
+										tmp_str = "function";
+										break;
+								}
+								if ( tmp_node->nametype != 'v'){
+									::std::cerr << "[ERROR] \""
+										<< name
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< " is not a valid identifier but a "
+										<< tmp_str
+										<< ::std::endl;
+									::std::exit(1);
+								}
+								ptr->setType(tmp_node->datatype);
+							}
+							break;
+						}
 					case ExprKind::FuncExp:
+						{
+							auto data = ptr->getData();
+							::std::string name = ::boost::apply_visitor(get_visitor(), data);
+							auto tmp_node = this->current_tab->research_elem_global(name);
+							if ( tmp_node == nullptr)
+							{
+								::std::cerr << "[ERROR] Unknown token \""
+									<< name
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							} else 
+							{
+								::std::string tmp_str;
+								switch(tmp_node->nametype)
+								{
+									case 'i':
+										tmp_str = "identifier";
+										break;
+									case 'a':
+										tmp_str = "array";
+										break;
+									case 'f':
+										tmp_str = "function";
+										break;
+								}
+								if ( tmp_node->nametype != 'f'){
+									::std::cerr << "[ERROR] \""
+										<< name
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< "is not a valid function but a "
+										<< tmp_str
+										<< ::std::endl;
+									::std::exit(1);
+								}
+								ptr->setType(tmp_node->datatype);
+								evalType(ptr->getChildren().at(0)->getChildren().at(0));
+
+								size_t counter = 0;
+								auto tmp = ptr->getChildren().at(0)->getChildren().at(0);
+								while( tmp != nullptr)
+								{
+									if ( counter >= tmp_node->args.size())
+									{
+										::std::cerr << "[ERROR] can't find match size args function \""
+											<< tmp_node->name
+											<< "\" in line "
+											<< ::std::endl;
+
+										::std::exit(1);
+									}
+									if ( tmp->getType() != tmp_node->args.at(counter++))
+									{
+										::std::cerr << "[ERROR] can't find match types args function \""
+											<< tmp_node->name
+											<< "\" in line "
+											<< ::std::endl;
+
+										::std::exit(1);
+									}
+									tmp = tmp->getSibling();
+								}
+							}
+							break;
+						}
 					case ExprKind::ArrayExp:
-						break;
+						{
+							auto data = ptr->getData();
+							::std::string name = ::boost::apply_visitor(get_visitor(), data);
+							auto tmp_node = this->current_tab->research_elem_global(name);
+							if ( tmp_node == nullptr)
+							{
+								::std::cerr << "[ERROR] Unknown token \""
+									<< name
+									<< "\" in line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							} else 
+							{
+								::std::string tmp_str;
+								switch(tmp_node->nametype)
+								{
+									case 'i':
+										tmp_str = "identifier";
+										break;
+									case 'a':
+										tmp_str = "array name";
+										break;
+									case 'f':
+										tmp_str = "function";
+										break;
+								}
+								if ( tmp_node->nametype != 'a')
+								{
+									::std::cerr << "[ERROR] \""
+										<< name
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< "is not a valid array but a "
+										<< tmp_str
+										<< ::std::endl;
+									::std::exit(1);
+								}
+								ptr->setType(tmp_node->datatype-5);
+								evalType(ptr->getChildren().at(0));
+
+								if ( ptr->getChildren().at(0)->getType() != TypeKind::IntK)
+								{
+									::std::cerr << "[ERROR] Subscript can only be \"int\" with \""
+										<< tmp_node->name
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							}
+							break;
+						}
+				}
+				if ( ptr->getSibling() != nullptr)
+				{
+					evalType(ptr->getSibling());
 				}
 				break;
-
 		}
 	}
 }

@@ -2,10 +2,11 @@
 
 namespace dh{
 
-symTab::symTab()
+symTab::symTab( ::std::string in_function)
 {
 	this->container.resize(256,nullptr);
 	this->upper_tab = nullptr;
+	this->in_function = in_function;
 }
 
 void symTab::insert_elem(const symNodePtr& ptr)
@@ -18,6 +19,9 @@ void symTab::insert_elem(const symNodePtr& ptr)
 			symNodePtr tmp = container[pos];
 			container[pos] = ptr;
 			ptr->next = tmp;
+		} else 
+		{
+			container[pos] = ptr;
 		}
 	}
 }
@@ -76,5 +80,35 @@ symNodePtr symTab::research_elem_global( const ::std::string& c)
 void symTab::set_upper_tab( const ::std::shared_ptr<symTab>& upper)
 {
 	this->upper_tab = upper;
+}
+
+::std::shared_ptr<symTab> symTab::get_upptr_tab()
+{
+	return this->upper_tab;
+}
+
+void symTab::append_down_tab( const ::std::shared_ptr<symTab>& ptr)
+{
+	this->donw_tabs.push_back(ptr);
+}
+
+::std::vector< ::std::shared_ptr<symTab> > symTab::get_down_tabs()
+{
+	return this->donw_tabs;
+}
+
+::std::string symTab::get_in_function() const
+{
+	return this->in_function;
+}
+
+int symTab::hash_pos(const ::std::string& c)
+{
+	int tmp = 0;
+	for ( auto i : c)
+	{
+		tmp = (( tmp << 2) + i) % 256;
+	}
+	return tmp;
 }
 }
