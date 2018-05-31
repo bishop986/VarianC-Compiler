@@ -45,6 +45,24 @@ int main( int argc, char** argv)
 	::dh::analysis an(tokens);
 	an.initSynTree();
 	an.printTree();
+
+	////// test hash table
+	/*
+	dh::symNodePtr tmp_node(new dh::symTabElem);
+	tmp_node->name = "f";
+	::std::shared_ptr< dh::symTab > tab(new dh::symTab("f",1));
+	tab->insert_elem(tmp_node);
+
+	::std::cout << "[A0] " << tab->get_in_function() << ::std::endl;
+	::std::cout << "[A] " << (tab->research_elem(tab->get_in_function()) == nullptr) << ::std::endl;
+
+	::std::shared_ptr< dh::symTab > tab2(new dh::symTab("f",1));
+
+	tab2->set_upper_tab(tab);
+
+	::std::cout << "[A] " << (tab2->research_elem(tab->get_in_function()) == nullptr) << ::std::endl;
+	::std::cout << "[B] " << (tab2->research_elem_global(tab->get_in_function()) == nullptr) << ::std::endl;
+	*/
 	return 0;
 	
 }
