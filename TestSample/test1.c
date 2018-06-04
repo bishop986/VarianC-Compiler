@@ -12,6 +12,8 @@ float f2 = 242.;
 float f3 = 2.3;
 float f4 = 2E+2;
 float f5 = 2.3;
+int array1[2];
+int array2[2] = {2};
  
 
 int main() {    
