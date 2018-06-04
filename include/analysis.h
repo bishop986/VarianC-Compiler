@@ -178,16 +178,14 @@ class analysis{
 		int current_stmt;
 
 		// gen midcode:
-		/*
 		int tmp_name_counter;
+		int tmp_lable_counter;
 		::std::string newtmpVal();
 		::std::string newtmpLab();
-		void genMidCode( const NodePtr& ptr);
+		void genMidCode( const NodePtr& ptr, const ::std::string& lable);
 		bool genFlag;
 
-		::std::map< ::std::string, int> symTab;
 		::std::vector<trival> midcodes;
-		*/
 		void evalType( const NodePtr& ptr);
 
 		friend class generator;
