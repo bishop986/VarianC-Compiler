@@ -1975,7 +1975,7 @@ void analysis::evalType(const NodePtr& ptr)
 										<< ::std::endl;
 									::std::exit(1);
 								}
-								ptr->setType(ptr->getChildren().at(0)->getType())
+								ptr->setType(ptr->getChildren().at(0)->getType());
 							} else 
 							{
 								if ( ptr->getChildren().at(0)->getType() == VoidK
