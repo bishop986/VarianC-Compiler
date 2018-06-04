@@ -43,37 +43,60 @@ class get_visitor : public ::boost::static_visitor<::std::string>{
 		}
 };
 
+struct trivalitem
+{
+	trivalitem(const ::std::string& name, const int& type)
+	{
+		this->name = name;
+		this->type = type;
+	}
+	::std::string name;
+	TypeKind type;
+}
+
 class trival
 {
 	public:
-		trival( ::std::string operand, ::std::string val1)
+		trival( ::std::string operand)
 		{
 			this->_operand = operand;
-			this->_val1 = val1;
+			size = 0;
+		}
+
+		trival( ::std::string operand, trivalitem val1)
+		{
+			this->_operand = operand;
+			this->_val1.name = val1.name;
+			this->_val1.type = val1.type;
 			size = 1;
 		}
 
-		trival( ::std::string res, ::std::string operand, ::std::string val1)
+		trival( trivalitem res, ::std::string operand, trivalitem val1)
 		{
-			this->_res = res;
+			this->_res.name = res.name;
+			this->_res.type = res.type;
 			this->_operand = operand;
-			this->_val1 = val1;
+			this->_val1.name = val1.name;
+			this->_val1.type = val1.type;
 			size = 2;
 		}
 
-		trival( ::std::string res, 
+		trival( trivalitem res, 
 				::std::string operand, 
-				::std::string val1, 
-				::std::string val2)
+				trivalitem val1, 
+				trivalitem val2)
 		{
-			this->_res = res;
+			this->_res.name = res.name;
+			this->_res.type = res.type;
 			this->_operand = operand;
-			this->_val1 = val1;
-			this->_val2 = val2;
+			this->_val1.name = val1.name;
+			this->_val1.type = val1.type;
+			this->_val2.name = val2.name;
+			this->_val2.type = val2.type;
 			size = 3;
 		}
 
-		::std::string getRes() const
+		trivalitem getRes() const
 		{
 			return _res;
 		}
@@ -83,12 +106,12 @@ class trival
 			return _operand;
 		}
 
-		::std::string getVal1() const
+		trivalitem getVal1() const
 		{
 			return _val1;
 		}
 
-		::std::string getVal2() const
+		trivalitem getVal2() const
 		{
 			return _val2;
 		}
@@ -99,10 +122,10 @@ class trival
 		}
 
 	private:
-		::std::string _res;
+		trivalitem _res;
 		::std::string _operand;
-		::std::string _val1;
-		::std::string _val2;
+		trivalitem _val1;
+		trivalitem _val2;
 		int size;
 };
 
@@ -182,7 +205,9 @@ class analysis{
 		int tmp_lable_counter;
 		::std::string newtmpVal();
 		::std::string newtmpLab();
-		void genMidCode( const NodePtr& ptr, const ::std::string& lable);
+		void genMidCode( const NodePtr& ptr, 
+				const ::std::string& lable1, 
+				const ::std::string& lable2);
 		bool genFlag;
 
 		::std::vector<trival> midcodes;

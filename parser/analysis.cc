@@ -2198,5 +2198,82 @@ void analysis::evalType(const NodePtr& ptr)
 	return ss.str();
 }
 
+void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, const ::std::string & label2)
+{
+	if ( ptr != nullptr)
+	{
+		int nodeKind = ptr->getNodeKind();
+		int kind = ptr->getKind();
+
+		switch(nodeKind)
+		{
+			case NodeKind::DeclK:
+				if ( kind == DeclKind::FuncK)
+				{
+					auto data = ptr->getData();
+					auto tmp_str = ::boost::apply_visitor(get_visitor(), data);
+					auto tmp = trival("entry", trivalitem(tmp_str,ptr->getType()));
+					midcodes.push_back(tmp);
+
+					genMidCode(ptr->getChildren().at(1), label1, label2);
+
+					midcodes.push_back(trival("end entry"));
+				}
+			case NodeKind::StmtK:
+				switch( kind)
+				{
+					case StmtKind::IfK:
+						{
+							genMidCode(ptr->getChildren().at(0), label1, label2);
+
+							auto lab1 = newtmpLab();
+							auto tmp = 
+								trival(
+									trivalitem(ptr->getChildren().at(0)->getStrVal(), 
+										TypeKind::BoolK),
+									"cmp",
+									trivalitem("false",
+										TypeKind::BoolK)
+									);
+							midcodes.push_back(tmp);
+
+							tmp = trival( "je",
+									trivalitem(lab1, -1));
+							midcodes.push_back(tmp);
+
+							genMidCode(ptr->getChildren().at(1), label1, label2);
+
+							::std::string lab2;
+							if ( ptr->getChildSize() > 2)
+							{
+								lab2 = newtmpLab();
+								tmp = trival( "jmp",
+										trivalitem(lab2, -1));
+								midcodes.push_back(tmp);
+							}
+
+							tmp = trival("lable",
+									trivalitem(lab1, -1));
+							midcodes.push_back(tmp);
+
+							if ( ptr->getChildSize() > 2)
+							{
+								genMidCode( ptr->getChildren().at(2), label1, label2);
+								tmp = trival("lable",
+										trivalitem(lab2, -1));
+								midcodes.push_back(tmp);
+							}
+							break;
+						}
+				}
+		}
+	}
+
+	if ( ptr->getSibling() != nullptr)
+	{
+		genMidCode(ptr->getSibling(), label1, label2);
+	}
+}
+
 
 }
