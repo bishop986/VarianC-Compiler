@@ -18,6 +18,9 @@ analysis::analysis( scanner tokens)
 	this->tmp = ::std::make_shared<token>("", TYPE::NONES, 0);
 	initFlag = false;
 	this->current_stmt = -1;
+	this->tmp_name_counter = 0;
+	this->tmp_lable_counter = 0;
+	this->genFlag = false;
 
 #ifdef _DEBUG_
 	assert(_tokens.isScanned());
@@ -416,11 +419,11 @@ NodePtr analysis::initialiser()
 		ret->setKind(InitialiserKind::ListK);
 		match("{");
 		tmp_ptr = expr();
-		ret->setSibling(tmp_ptr);
 
 		NodePtr tmp_cur_ptr = tmp_ptr;
-		while(tmp->getVal() != ",")
+		while(tmp->getVal() == ",")
 		{
+			match(",");
 			NodePtr tmp_in_ptr = expr();
 			tmp_cur_ptr->setSibling(tmp_in_ptr);
 			tmp_cur_ptr = tmp_in_ptr;
@@ -1320,6 +1323,15 @@ void analysis::printTree(const NodePtr& ptr)
 			case TypeKind::VoidK:
 				tmp_str = "void";
 				break;
+			case TypeKind::IntArrayK:
+				tmp_str = "intArray";
+				break;
+			case TypeKind::FloatArrayK:
+				tmp_str = "floatArray";
+				break;
+			case TypeKind::BoolArrayK:
+				tmp_str = "boolArray";
+				break;
 		}
 		::std::cout << ::boost::apply_visitor(get_visitor(),data) 
 			<< "_" 
@@ -1461,7 +1473,7 @@ void analysis::evalType(const NodePtr& ptr)
 							if ( ptr->getChildren().size() == 2)
 							{
 								evalType(ptr->getChildren().at(1));
-								if ( ptr->getChildren().at(0)->getType() != ptr->getType())
+								if ( ptr->getChildren().at(1)->getType() != ptr->getType()-5)
 								{
 									if ( ptr->getType() != TypeKind::FloatK)
 									{
@@ -2171,5 +2183,20 @@ void analysis::evalType(const NodePtr& ptr)
 		}
 	}
 }
+
+::std::string analysis::newtmpVal()
+{
+	::std::stringstream ss;
+	ss << "@" << tmp_name_counter++;
+	return ss.str();
+}
+
+::std::string analysis::newtmpLab()
+{
+	::std::stringstream ss;
+	ss << ".L" << tmp_lable_counter++;
+	return ss.str();
+}
+
 
 }
