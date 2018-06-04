@@ -1321,7 +1321,10 @@ void analysis::printTree(const NodePtr& ptr)
 				tmp_str = "void";
 				break;
 		}
-		::std::cout << ::boost::apply_visitor(get_visitor(),data) << "_" << tmp_str <<::std::endl;
+		::std::cout << ::boost::apply_visitor(get_visitor(),data) 
+			<< "_" 
+			<< tmp_str 
+			<<::std::endl;
 		for( auto it: ptr->getChildren())
 		{
 			layer_record++;
@@ -1905,7 +1908,7 @@ void analysis::evalType(const NodePtr& ptr)
 
 								if ( ptr->getChildren().at(1)->getType() == IntK)
 								{
-									ptr->setType(ptr->getChildren().at(0)->getType());
+									ptr->setType(FloatK);
 								} else 
 								{
 									auto data = ptr->getData();
@@ -1972,6 +1975,7 @@ void analysis::evalType(const NodePtr& ptr)
 										<< ::std::endl;
 									::std::exit(1);
 								}
+								ptr->setType(ptr->getChildren().at(0)->getType())
 							} else 
 							{
 								if ( ptr->getChildren().at(0)->getType() == VoidK
@@ -1984,8 +1988,8 @@ void analysis::evalType(const NodePtr& ptr)
 										<< ::std::endl;
 									::std::exit(1);
 								}
+								ptr->setType(TypeKind::BoolK);
 							}
-							ptr->setType(TypeKind::BoolK);
 							break;
 						}
 					case ExprKind::BraketExp:
