@@ -4,10 +4,22 @@ float f3 = 2.;
 float f4 = .2;
 int arr[10];
 int arr1[10] = {1,1};
+boolean flag = true;
 
 int main()
 {
-	arr1[0] = 1;
+	arr[0] = 1;
 	f3 = 1.1;
-	arr = 1;
+
+	while(f3 > arr[1])
+	{
+		f3 = f3 + 1;
+		flag = flag && flag;
+	}
+
+	for ( f2 = 1; f2 != 0; f2 = f2 - 1)
+	{
+		f3 = f3 + 1;
+	}
+
 }
