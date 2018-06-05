@@ -1134,13 +1134,14 @@ NodePtr analysis::primary_expr()
 
 		if ( tmp->getType() == TYPE::NUMBOOLEAN){
 			ret->setType(TypeKind::BoolK);
+			ret->setKind(ExprKind::BOOLLITERAL);
 		} else 
 		{
 			ret->setType(TypeKind::StringK);
+			ret->setKind(ExprKind::STRINGLITERAL);
 		}
 		match(tmp->getVal());
 		ret->setNodeKind(NodeKind::ExprK);
-		ret->setKind(ExprKind::FLOATLITERAL);
 	} else if ( tmp->getType() == TYPE::ID)
 	{
 		::std::string tmp_str = identifier();
@@ -1770,6 +1771,13 @@ void analysis::evalType(const NodePtr& ptr)
 							{
 								evalType(it);
 							}
+							if ( ptr->getChildren().at(0)->getType() != BoolK)
+							{
+								::std::cerr << "[ERROR] Incompitable type expect \"boolean\" in  line "
+									<< ptr->getLineno()
+									<< ::std::endl;
+								::std::exit(1);
+							}
 							current_tab = current_tab->get_upptr_tab();
 							current_stmt = -1;
 							break;
@@ -1787,7 +1795,7 @@ void analysis::evalType(const NodePtr& ptr)
 							{
 								if ( ptr->getChildren().at(1)->getType() != TypeKind::BoolK)
 								{
-									::std::cerr << "[ERROR] Need Bool expr in for stmt in line"
+									::std::cerr << "[ERROR] Need Bool expr in for stmt in line "
 										<< ptr->getLineno()
 										<< ::std::endl;
 
@@ -1802,6 +1810,13 @@ void analysis::evalType(const NodePtr& ptr)
 							for( auto it: ptr->getChildren())
 							{
 								evalType(it);
+							}
+							if ( ptr->getChildren().at(0)->getType() != TypeKind::BoolK)
+							{
+								::std::cerr << "[ERROR] Need Bool expr in for stmt in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
 							}
 							current_stmt = -1;
 							break;
@@ -2231,6 +2246,11 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 
 		switch(nodeKind)
 		{
+			case NodeKind::InitialiserK:
+				{
+					genMidCode(ptr->getChildren().at(0), label1, label2);
+					break;
+				}
 			case NodeKind::DeclK:
 				if ( kind == DeclKind::FuncK)
 				{
@@ -2239,7 +2259,7 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 					auto tmp = trival("entry", trivalitem(tmp_str,ptr->getType()));
 					midcodes.push_back(tmp);
 
-					genMidCode(ptr->getChildren().at(1), label1, label2);
+					genMidCode(ptr->getChildren().at(2), label1, label2);
 
 					midcodes.push_back(trival("end entry"));
 					break;
@@ -2360,12 +2380,11 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 							midcodes.push_back(tmp);
 
 							genMidCode(ptr->getChildren().at(1), label1, label2);
-							genMidCode(ptr->getChildren().at(2), label1, label2);
 
 							if ( ptr->getChildren().at(1) != nullptr)
 							{
 								tmp = trival(
-										trivalitem(ptr->getChildren().at(0)->getStrVal(),
+										trivalitem(ptr->getChildren().at(1)->getStrVal(),
 											TypeKind::BoolK),
 										"cmp",
 										trivalitem("false",
@@ -2376,8 +2395,8 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 										trivalitem(lab2, -1));
 								midcodes.push_back(tmp);
 							}
-
 							genMidCode(ptr->getChildren().at(3), lab1, lab2);
+							genMidCode(ptr->getChildren().at(2), label1, label2);
 
 							tmp = trival("jmp",
 									trivalitem(lab1, -1));
@@ -2391,9 +2410,9 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 						}
 					case StmtKind::ComK:
 						{
-							for ( auto it: ptr->getChildren())
+							for ( auto it : ptr->getChildren())
 							{
-								genMidCode(it,label1, label2);
+								genMidCode( it, label1, label2);
 							}
 							break;
 						}
@@ -2418,24 +2437,24 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 									trivalitem( tmp_str, 
 										ptr->getType()),
 									"=",
-									trivalitem( ptr->getChildren().at(0)->getStrVal(), 
+									trivalitem( ptr->getChildren().at(0)->getChildren().at(0)->getStrVal(), 
 										ptr->getChildren().at(0)->getType()));
 							midcodes.push_back(tmp);
 						}
+						break;
 					} else if ( kind == DeclaratorKind::ArrayK)
 					{
-						if ( ptr->getChildSize() != 1)
+						if ( ptr->getChildSize() == 2)
 						{
 							genMidCode( ptr->getChildren().at(0), label1, label2);
 
-							::std::stringstream ss;
 							int counter = 0;
 							auto tmp_ptr = ptr->getChildren().at(1)->getChildren().at(0);
 
 							while( tmp_ptr != nullptr)
 							{
-								ss.clear();
-								ss << counter;
+								::std::stringstream ss;
+								ss << counter++;
 								genMidCode( tmp_ptr, label1, label2);
 
 								auto data = ptr->getData();
@@ -2474,6 +2493,7 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 
 								tmp_ptr = tmp_ptr->getSibling();
 							}
+							break;
 						}
 					}
 				}
@@ -2486,6 +2506,7 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 						case ExprKind::CondAndK:
 						case ExprKind::EquK:
 						case ExprKind::MulK:
+						case ExprKind::RelK:
 						case ExprKind::AdditiveK:
 							{
 								genMidCode(ptr->getChildren().at(0), label1, label2);
@@ -2502,6 +2523,25 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 										node_name,
 										trivalitem(ptr->getChildren().at(0)->getStrVal(),
 											ptr->getChildren().at(0)->getType()),
+										trivalitem(ptr->getChildren().at(1)->getStrVal(),
+											ptr->getChildren().at(1)->getType()));
+								midcodes.push_back(tmp);
+								break;
+							}
+						case ExprKind::AssignK:
+							{
+								genMidCode(ptr->getChildren().at(0), label1, label2);
+								genMidCode(ptr->getChildren().at(1), label1, label2);
+
+								auto data = ptr->getData();
+								auto node_name = ::boost::apply_visitor(get_visitor(), data);
+								auto tmpname = newtmpVal();
+
+								ptr->setStrVal(tmpname);
+								auto tmp = trival(
+										trivalitem(ptr->getChildren().at(0)->getStrVal(),
+											ptr->getChildren().at(0)->getType()),
+										node_name,
 										trivalitem(ptr->getChildren().at(1)->getStrVal(),
 											ptr->getChildren().at(1)->getType()));
 								midcodes.push_back(tmp);
@@ -2575,7 +2615,8 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 						case ExprKind::FuncExp:
 							{
 								auto tmp = trival("begain_args");
-								auto tmp_ptr = ptr->getChildren().at(0);
+								midcodes.push_back(tmp);
+								auto tmp_ptr = ptr->getChildren().at(0)->getChildren().at(0);
 
 								while ( tmp_ptr != nullptr)
 								{
@@ -2589,15 +2630,27 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 									tmp_ptr = tmp_ptr->getSibling();
 								}
 
-								auto tmpname = newtmpVal();
-								auto data = ptr->getData();
-								auto tmp_str = ::boost::apply_visitor(get_visitor(),data);
-								tmp = trival( 
-										trivalitem(tmpname,
-											ptr->getType()),
-										"=call",
-										trivalitem(tmp_str,
-											ptr->getType()));
+								if ( ptr->getType() == TypeKind::VoidK)
+								{
+									auto data = ptr->getData();
+									auto tmp_str = ::boost::apply_visitor(get_visitor(),data);
+									tmp = trival( 
+											"call",
+											trivalitem(tmp_str,
+												ptr->getType()));
+								} else 
+								{
+									auto tmpname = newtmpVal();
+									auto data = ptr->getData();
+									auto tmp_str = ::boost::apply_visitor(get_visitor(),data);
+									tmp = trival( 
+											trivalitem(tmpname,
+												ptr->getType()),
+											"=call",
+											trivalitem(tmp_str,
+												ptr->getType()));
+									ptr->setStrVal(tmpname);
+								}
 								midcodes.push_back(tmp);
 								break;
 							}
@@ -2624,5 +2677,52 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 	}
 }
 
+void analysis::genMidCode()
+{
+	if ( !initFlag)
+	{
+		::std::cerr << "[Fatal] SynTree not ready" << ::std::endl;
+		::std::exit(1);
+	}
 
+	genMidCode( _root, "", "");
+	genFlag = true;
+}
+
+void analysis::printMidCode()
+{
+	for ( auto it: midcodes)
+	{
+		switch(it.getSize())
+		{
+			case 0:
+				::std::cout << it.getOperand() << ::std::endl;
+				break;
+			case 1:
+				::std::cout << it.getOperand()
+					<< " "
+					<< it.getVal1().name
+					<< ::std::endl;
+				break;
+			case 2:
+				::std::cout << it.getRes().name
+					<< " "
+					<< it.getOperand()
+					<< " "
+					<< it.getVal1().name
+					<< ::std::endl;
+				break;
+			case 3:
+				::std::cout << it.getRes().name
+					<< " = "
+					<< it.getVal1().name
+					<< " "
+					<< it.getOperand()
+					<< " "
+					<< it.getVal2().name
+					<< ::std::endl;
+				break;
+		}
+	}
+}
 }

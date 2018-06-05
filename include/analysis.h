@@ -141,7 +141,8 @@ class analysis{
 		NodePtr getRoot();
 		void printTree() ;
 		void initSynTree();
-		//void genMidCode();
+		void genMidCode();
+		void printMidCode();
 		//void exportMidCode( const ::std::string path); 
 	private:
 
