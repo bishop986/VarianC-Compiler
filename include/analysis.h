@@ -45,14 +45,19 @@ class get_visitor : public ::boost::static_visitor<::std::string>{
 
 struct trivalitem
 {
+	trivalitem()
+	{
+		this->name = "";
+		this->type = -100;
+	}
 	trivalitem(const ::std::string& name, const int& type)
 	{
 		this->name = name;
 		this->type = type;
 	}
 	::std::string name;
-	TypeKind type;
-}
+	int type;
+};
 
 class trival
 {

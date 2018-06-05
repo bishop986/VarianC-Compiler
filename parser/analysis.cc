@@ -590,13 +590,20 @@ NodePtr analysis::for_stmt()
 	{
 		tmp_ptr = expr();
 		ret->appendChild(tmp_ptr);
+	} else 
+	{
+		ret->appendChild(nullptr);
 	}
+	
 	match(";");
 
 	if ( tmp->getVal() != ";")
 	{
 		tmp_ptr = expr();
 		ret->appendChild(tmp_ptr);
+	} else 
+	{
+		ret->appendChild(nullptr);
 	}
 	match(";");
 
@@ -604,6 +611,9 @@ NodePtr analysis::for_stmt()
 	{
 		tmp_ptr = expr();
 		ret->appendChild(tmp_ptr);
+	} else 
+	{
+		ret->appendChild(nullptr);
 	}
 	match(")");
 
@@ -699,6 +709,9 @@ NodePtr analysis::expr_stmt()
 	{
 		NodePtr tmp_ptr = expr();
 		ret->appendChild(tmp_ptr);
+	} else 
+	{
+		ret->appendChild(nullptr);
 	}
 	match(";");
 
@@ -1683,8 +1696,7 @@ void analysis::evalType(const NodePtr& ptr)
 								&& this->current_stmt != StmtKind::ForK)
 						{
 							::std::cerr << "[ERROR] expected-unqulified id in line "
-								<< ptr->getLineno()
-								<< ::std::endl;
+								<< ptr->getLineno();
 							::std::exit(1);
 						}
 						break;
@@ -1770,6 +1782,18 @@ void analysis::evalType(const NodePtr& ptr)
 								evalType(it);
 							}
 							current_stmt = -1;
+
+							if ( ptr->getChildren().at(1) != nullptr)
+							{
+								if ( ptr->getChildren().at(1)->getType() != TypeKind::BoolK)
+								{
+									::std::cerr << "[ERROR] Need Bool expr in for stmt in line"
+										<< ptr->getLineno()
+										<< ::std::endl;
+
+									::std::exit(1);
+								}
+							}
 							break;
 						}
 					case StmtKind::WhileK:
@@ -2218,6 +2242,11 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 					genMidCode(ptr->getChildren().at(1), label1, label2);
 
 					midcodes.push_back(trival("end entry"));
+					break;
+				} else if ( kind == DeclKind::VarK)
+				{
+					genMidCode(ptr->getChildren().at(0), label1, label2);
+					break;
 				}
 			case NodeKind::StmtK:
 				switch( kind)
@@ -2265,13 +2294,333 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 							}
 							break;
 						}
-				}
-		}
-	}
+					case StmtKind::WhileK:
+						{
+							auto lab1 = newtmpLab();
+							
+							auto tmp = trival("lable", trivalitem(lab1, -1));
+							midcodes.push_back(tmp);
 
-	if ( ptr->getSibling() != nullptr)
-	{
-		genMidCode(ptr->getSibling(), label1, label2);
+							genMidCode(ptr->getChildren().at(0), label1, label2);
+
+							auto lab2 = newtmpLab();
+							tmp = trival(
+									trivalitem(ptr->getChildren().at(0)->getStrVal(), 
+										ptr->getChildren().at(0)->getType()),
+									"cmp",
+									trivalitem("false",
+										TypeKind::BoolK));
+							midcodes.push_back(tmp);
+
+							tmp = trival("je", trivalitem(lab2, -1));
+							midcodes.push_back(tmp);
+
+							genMidCode(ptr->getChildren().at(1), lab1, lab2);
+
+							tmp = trival("jmp", trivalitem(lab1, -1));
+							midcodes.push_back(tmp);
+
+							tmp = trival("label", trivalitem(lab2, -1));
+							midcodes.push_back(tmp);
+							break;
+						}
+					case StmtKind::BreakK:
+						{
+							auto tmp = trival("jmp", trivalitem(label2, -1));
+							midcodes.push_back(tmp);
+							break;
+						}
+					case StmtKind::ContinueK:
+						{
+							auto tmp = trival("jmp", trivalitem(label1, -1));
+							midcodes.push_back(tmp);
+							break;
+						}
+					case StmtKind::RetK:
+						{
+							if ( ptr->getType() != TypeKind::VoidK)
+							{
+								genMidCode(ptr->getChildren().at(0), label1, label2);
+
+								auto tmp = trival("return", trivalitem(
+											trivalitem(ptr->getChildren().at(0)->getStrVal(), 
+												ptr->getType())));
+								midcodes.push_back(tmp);
+							}
+							break;
+						}
+					case StmtKind::ForK:
+						{
+							auto lab1 = newtmpLab();
+							auto lab2 = newtmpLab();
+
+							genMidCode(ptr->getChildren().at(0), label1, label2);
+							auto tmp = trival("label", 
+									trivalitem(lab1, -1));
+							midcodes.push_back(tmp);
+
+							genMidCode(ptr->getChildren().at(1), label1, label2);
+							genMidCode(ptr->getChildren().at(2), label1, label2);
+
+							if ( ptr->getChildren().at(1) != nullptr)
+							{
+								tmp = trival(
+										trivalitem(ptr->getChildren().at(0)->getStrVal(),
+											TypeKind::BoolK),
+										"cmp",
+										trivalitem("false",
+											TypeKind::BoolK));
+								midcodes.push_back(tmp);
+
+								tmp = trival("je", 
+										trivalitem(lab2, -1));
+								midcodes.push_back(tmp);
+							}
+
+							genMidCode(ptr->getChildren().at(3), lab1, lab2);
+
+							tmp = trival("jmp",
+									trivalitem(lab1, -1));
+							midcodes.push_back(tmp);
+
+							tmp = trival("label",
+									trivalitem(lab2, -1));
+							midcodes.push_back(tmp);
+
+							break;
+						}
+					case StmtKind::ComK:
+						{
+							for ( auto it: ptr->getChildren())
+							{
+								genMidCode(it,label1, label2);
+							}
+							break;
+						}
+					case StmtKind::ExpK:
+						{
+							genMidCode(ptr->getChildren().at(0), label1, label2);
+							break;
+						}
+				}
+				break;
+			case NodeKind::DeclaratorK:
+				{
+					if ( kind == DeclaratorKind::PrimitiveK)
+					{
+						if ( ptr->getChildSize() != 0)
+						{
+							genMidCode(ptr->getChildren().at(0), label1, label2);
+
+							auto data = ptr->getData();
+							auto tmp_str = ::boost::apply_visitor(get_visitor(), data);
+							auto tmp = trival(
+									trivalitem( tmp_str, 
+										ptr->getType()),
+									"=",
+									trivalitem( ptr->getChildren().at(0)->getStrVal(), 
+										ptr->getChildren().at(0)->getType()));
+							midcodes.push_back(tmp);
+						}
+					} else if ( kind == DeclaratorKind::ArrayK)
+					{
+						if ( ptr->getChildSize() != 1)
+						{
+							genMidCode( ptr->getChildren().at(0), label1, label2);
+
+							::std::stringstream ss;
+							int counter = 0;
+							auto tmp_ptr = ptr->getChildren().at(1)->getChildren().at(0);
+
+							while( tmp_ptr != nullptr)
+							{
+								ss.clear();
+								ss << counter;
+								genMidCode( tmp_ptr, label1, label2);
+
+								auto data = ptr->getData();
+								auto node_name = ::boost::apply_visitor(get_visitor(), data);
+								auto tmp_str = "elem_size("+node_name+")";
+
+								auto tmpname1 = newtmpVal();
+								auto tmp = trival(
+										trivalitem(tmpname1, 
+											TypeKind::IntK),
+										"*",
+										trivalitem(ss.str(),
+											TypeKind::IntK),
+										trivalitem(tmp_str,
+											TypeKind::IntK));
+								midcodes.push_back(tmp);
+
+								auto tmpname2 = newtmpVal();
+								tmp = trival(
+										trivalitem( tmpname2, 
+											TypeKind::IntK),
+										"+",
+										trivalitem("&"+node_name,
+											TypeKind::IntK),
+										trivalitem(tmpname1,
+											TypeKind::IntK));
+								midcodes.push_back(tmp);
+
+								tmp = trival(
+										trivalitem( "*"+tmpname2,
+											ptr->getType()-5),
+										"=",
+										trivalitem( tmp_ptr->getStrVal(),
+											tmp_ptr->getKind()));
+								midcodes.push_back(tmp);
+
+								tmp_ptr = tmp_ptr->getSibling();
+							}
+						}
+					}
+				}
+				break;
+			case NodeKind::ExprK:
+				{
+					switch(kind)
+					{
+						case ExprKind::CondOrK:
+						case ExprKind::CondAndK:
+						case ExprKind::EquK:
+						case ExprKind::MulK:
+						case ExprKind::AdditiveK:
+							{
+								genMidCode(ptr->getChildren().at(0), label1, label2);
+								genMidCode(ptr->getChildren().at(1), label1, label2);
+
+								auto data = ptr->getData();
+								auto node_name = ::boost::apply_visitor(get_visitor(), data);
+								auto tmpname = newtmpVal();
+
+								ptr->setStrVal(tmpname);
+								auto tmp = trival(
+										trivalitem(tmpname,
+											ptr->getType()),
+										node_name,
+										trivalitem(ptr->getChildren().at(0)->getStrVal(),
+											ptr->getChildren().at(0)->getType()),
+										trivalitem(ptr->getChildren().at(1)->getStrVal(),
+											ptr->getChildren().at(1)->getType()));
+								midcodes.push_back(tmp);
+								break;
+							}
+						case ExprKind::UnaryK:
+							{
+								genMidCode(ptr->getChildren().at(0), label1, label2);
+
+								auto data = ptr->getData();
+								auto node_name = ::boost::apply_visitor(get_visitor(), data);
+								auto tmpname = newtmpVal();
+
+								ptr->setStrVal(tmpname);
+								if ( node_name != "!"){
+									auto tmp = trival(
+											trivalitem(tmpname,
+												ptr->getType()),
+											node_name,
+											trivalitem(ptr->getChildren().at(0)->getStrVal(),
+												ptr->getChildren().at(0)->getType()),
+											trivalitem("0",
+												ptr->getChildren().at(0)->getType()));
+									midcodes.push_back(tmp);
+								} else 
+								{
+									auto tmp = trival(
+											trivalitem(tmpname,
+												ptr->getType()),
+											"=not",
+											trivalitem(ptr->getChildren().at(0)->getStrVal(),
+												ptr->getChildren().at(0)->getType()));
+									midcodes.push_back(tmp);
+								}
+
+								break;
+							}
+						case ExprKind::ArrayExp:
+							{
+								genMidCode(ptr->getChildren().at(0), label1, label2);
+
+								auto data = ptr->getData();
+								auto name = ::boost::apply_visitor(get_visitor(), data);
+								auto tmp_str = "elem(" + name + ")";
+
+								auto tmpname1 = newtmpVal();
+								auto tmp = trival(
+										trivalitem( tmpname1, 
+											TypeKind::IntK),
+										"*",
+										trivalitem( ptr->getChildren().at(0)->getStrVal(),
+											TypeKind::IntK),
+										trivalitem( tmp_str,
+											TypeKind::IntK));
+								midcodes.push_back(tmp);
+
+								auto tmpname2 = newtmpVal();
+								tmp = trival( 
+										trivalitem( tmpname2,
+											TypeKind::IntK),
+										"+",
+										trivalitem( "&" + name,
+											TypeKind::IntK),
+										trivalitem( tmpname1,
+											TypeKind::IntK));
+								midcodes.push_back(tmp);
+
+								ptr->setStrVal("*" + tmpname2);
+								break;
+							}
+						case ExprKind::FuncExp:
+							{
+								auto tmp = trival("begain_args");
+								auto tmp_ptr = ptr->getChildren().at(0);
+
+								while ( tmp_ptr != nullptr)
+								{
+									genMidCode(tmp_ptr, label1, label2);
+
+									tmp = trival("arg",
+											trivalitem( tmp_ptr->getStrVal(),
+												tmp_ptr->getType()));
+									midcodes.push_back(tmp);
+
+									tmp_ptr = tmp_ptr->getSibling();
+								}
+
+								auto tmpname = newtmpVal();
+								auto data = ptr->getData();
+								auto tmp_str = ::boost::apply_visitor(get_visitor(),data);
+								tmp = trival( 
+										trivalitem(tmpname,
+											ptr->getType()),
+										"=call",
+										trivalitem(tmp_str,
+											ptr->getType()));
+								midcodes.push_back(tmp);
+								break;
+							}
+						case ExprKind::INTLITERAL:
+						case ExprKind::FLOATLITERAL:
+						case ExprKind::BOOLLITERAL:
+						case ExprKind::IdK:
+							{
+								auto data = ptr->getData();
+								auto node_name = ::boost::apply_visitor(get_visitor(), data);
+
+								ptr->setStrVal( node_name);
+								break;
+							}
+					}
+				}
+				break;
+		}
+
+		if ( ptr->getSibling() != nullptr)
+		{
+			genMidCode(ptr->getSibling(), label1, label2);
+		}
 	}
 }
 
