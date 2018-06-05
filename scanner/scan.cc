@@ -181,7 +181,7 @@ bool scanner::scan(::std::FILE *fp)
 						tmp_type = TYPE::ELSE;
 					} else if ( tmp == "for")
 					{
-						tmp_type = TYPE::ELSE;
+						tmp_type = TYPE::FOR;
 					} else if ( tmp == "float")
 					{
 						tmp_type = TYPE::FLOAT;
@@ -372,7 +372,7 @@ bool scanner::scan(::std::FILE *fp)
 						if ( cur == '=')
 						{
 							tmp.clear();
-							tmp = lastch + cur;
+							tmp = "!=";
 
 							_tokens.push_back( token( tmp, TYPE::EQUOP, line));
 							tmp.clear();
@@ -411,7 +411,7 @@ bool scanner::scan(::std::FILE *fp)
 						if ( cur == '|')
 						{
 							tmp.clear();
-							tmp = lastch + cur;
+							tmp = "||";
 
 							_tokens.push_back( token( tmp, TYPE::LOGICALOP, line));
 							tmp.clear();
@@ -431,7 +431,7 @@ bool scanner::scan(::std::FILE *fp)
 						if ( cur == '&')
 						{
 							tmp.clear();
-							tmp = lastch + cur;
+							tmp = "&&";
 
 							_tokens.push_back( token( tmp, TYPE::LOGICALOP, line));
 							tmp.clear();
