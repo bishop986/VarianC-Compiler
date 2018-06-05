@@ -45,6 +45,8 @@ int main( int argc, char** argv)
 	::dh::analysis an(tokens);
 	an.initSynTree();
 	an.printTree();
+	an.genMidCode();
+	an.printMidCode();
 
 	////// test hash table
 	/*
