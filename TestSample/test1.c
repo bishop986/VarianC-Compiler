@@ -1,4 +1,5 @@
-int f(int a) {         
+int f(int a) { 
+    int c = a + 2.0;	
 	return 200;
 }
 
