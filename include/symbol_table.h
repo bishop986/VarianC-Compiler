@@ -14,9 +14,17 @@ typedef ::std::shared_ptr<symTabElem> symNodePtr;
 
 struct symTabElem
 {
+	symTabElem()
+	{
+		floatcounter = 0;
+		offset = 0;
+	}
 	char nametype;
+	int floatcounter;
 	int datatype;
+	int offset;
 	::std::string name;
+	int arraylength;
 	::std::vector<int> args;
 
 	symNodePtr next;
@@ -36,6 +44,7 @@ class symTab
 		symNodePtr research_elem(const ::std::string& c);
 		symNodePtr research_elem_global(const ::std::string& c);
 	private:
+		int totaloffset;
 		::std::shared_ptr<symTab> upper_tab;
 		::std::vector< ::std::shared_ptr<symTab> > donw_tabs;
 		::std::vector<symNodePtr> container;

@@ -143,6 +143,7 @@ class analysis{
 		void initSynTree();
 		void genMidCode();
 		void printMidCode();
+		void genCode();
 		//void exportMidCode( const ::std::string path); 
 	private:
 
@@ -215,6 +216,9 @@ class analysis{
 				const ::std::string& lable1, 
 				const ::std::string& lable2);
 		bool genFlag;
+
+		int FLOATLITERALCounter;
+
 
 		::std::vector<trival> midcodes;
 		void evalType( const NodePtr& ptr);
