@@ -47,6 +47,7 @@ int main( int argc, char** argv)
 	an.printTree();
 	an.genMidCode();
 	an.printMidCode();
+	an.genCode();
 
 	////// test hash table
 	/*
