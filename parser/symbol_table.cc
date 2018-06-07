@@ -1,5 +1,5 @@
 #include "../include/symbol_table.h"
-
+#include <iostream>
 namespace dh{
 
 symTab::symTab( ::std::string in_function)
@@ -7,12 +7,34 @@ symTab::symTab( ::std::string in_function)
 	this->container.resize(256,nullptr);
 	this->upper_tab = nullptr;
 	this->in_function = in_function;
+	this->totaloffset = 0;
 }
 
 void symTab::insert_elem(const symNodePtr& ptr)
 {
 	if ( ptr != nullptr)
 	{
+		if ( ptr->nametype != 0)
+		{
+			switch(ptr->datatype)
+			{
+				case TypeKind::IntK:
+				case TypeKind::FloatK:
+					totaloffset += 4;
+					break;
+				case TypeKind::IntArrayK:
+				case TypeKind::FloatArrayK:
+					totaloffset += ptr->arraylength * 4;
+					break;
+				case TypeKind::BoolK:
+					totaloffset += 1;
+					break;
+				case TypeKind::BoolArrayK:
+					totaloffset += ptr->arraylength * 1;
+					break;
+			}
+			ptr->offset = totaloffset;
+		}
 		int pos = hash_pos(ptr->name);
 		if ( container[pos] != nullptr)
 		{

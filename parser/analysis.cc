@@ -6,6 +6,7 @@
 #include "../include/analysis.h"
 #include "../include/global.h"
 #include "../include/scan.h"
+#include <stack>
 #include <sstream>
 
 namespace dh{
@@ -21,6 +22,7 @@ analysis::analysis( scanner tokens)
 	this->tmp_name_counter = 0;
 	this->tmp_lable_counter = 0;
 	this->genFlag = false;
+	this->FLOATLITERALCounter = 0;
 
 #ifdef _DEBUG_
 	assert(_tokens.isScanned());
@@ -399,6 +401,8 @@ NodePtr analysis::declarator()
 	{
 		ret->setKind(DeclaratorKind::PrimitiveK);
 	}
+
+	ret->setSibling(nullptr);
 
 	return ret;
 }
@@ -1412,9 +1416,9 @@ void analysis::evalType(const NodePtr& ptr)
 							current_tab->append_down_tab(newTab);
 							current_tab = newTab;
 
-							if ( ptr->getChildren()[1]->getChildren()[0] != nullptr)
+							if ( ptr->getChildren()[1]->getChildren().at(0) != nullptr)
 							{
-								evalType(ptr->getChildren().at(1)->getChildren()[0]);
+								evalType(ptr->getChildren().at(1)->getChildren().at(0));
 							}
 							current_tab = current_tab->get_upptr_tab();
 
@@ -1432,12 +1436,19 @@ void analysis::evalType(const NodePtr& ptr)
 							evalType(ptr->getChildren().at(2));
 							current_tab = current_tab->get_upptr_tab();
 							// exit sub area
-
+							if ( ptr->getSibling() != nullptr)
+							{
+								evalType(ptr->getSibling());
+							}
 							break;
 						}
 					case DeclKind::VarK:
 						this->tmp_dType = ptr->getType();
 						evalType(ptr->getChildren().at(0));
+						if ( ptr->getSibling() != nullptr)
+						{
+							evalType(ptr->getSibling());
+						}
 						break;
 					case DeclKind::ParaK:
 						{
@@ -1451,12 +1462,9 @@ void analysis::evalType(const NodePtr& ptr)
 							break;
 						}
 				}
-				if ( ptr->getSibling() != nullptr)
-				{
-					evalType(ptr->getSibling());
-				}
 				break;
 			case NodeKind::DeclaratorK:
+
 				switch(ptr->getKind())
 				{
 					case DeclaratorKind::ArrayK:
@@ -1466,6 +1474,9 @@ void analysis::evalType(const NodePtr& ptr)
 							auto vname = ::boost::apply_visitor(get_visitor(), data);
 							symNodePtr tmp_node(new symTabElem);
 
+							data = ptr->getChildren().at(0)->getData();
+
+							tmp_node->arraylength = ::boost::get<int>(data);
 							tmp_node->name = vname;
 							tmp_node->nametype = 'a';
 							tmp_node->datatype = ptr->getType();
@@ -1563,7 +1574,6 @@ void analysis::evalType(const NodePtr& ptr)
 							ptr->setType(tmp_dType);
 							auto data = ptr->getData();
 							auto vname = ::boost::apply_visitor(get_visitor(), data);
-
 							symNodePtr tmp_node(new symTabElem);
 							tmp_node->name = vname;
 							tmp_node->nametype = 'v';
@@ -1858,13 +1868,20 @@ void analysis::evalType(const NodePtr& ptr)
 							switch(ptr->getChildren().at(0)->getType())
 							{
 								case TypeKind::BoolK:
-									tmp_type1 = "boolean";
+									tmp_type0 = "boolean";
 									break;
 								case TypeKind::StringK:
-									tmp_type1 = "string";
+									tmp_type0 = "string";
 									break;
 								case TypeKind::VoidK:
-									tmp_type1 = "void";
+									tmp_type0 = "void";
+									break;
+								case TypeKind::FloatK:
+									tmp_type0 = "float";
+									break;
+								case TypeKind::IntK:
+									tmp_type0 = "int";
+									break;
 							}
 
 							switch(ptr->getChildren().at(1)->getType())
@@ -1877,30 +1894,27 @@ void analysis::evalType(const NodePtr& ptr)
 									break;
 								case TypeKind::VoidK:
 									tmp_type1 = "void";
+									break;
+								case TypeKind::IntK:
+									tmp_type1 = "int";
+									break;
+								case TypeKind::FloatK:
+									tmp_type1 = "float";
+									break;
 							}
 
 							if ( ptr->getChildren().at(0)->getType()
 									== ptr->getChildren().at(1)->getType())
 							{
 								ptr->setType(TypeKind::BoolK);
-							} else if ( ptr->getChildren().at(0)->getType() == FloatK)
+							} else if ( ptr->getChildren().at(0)->getType() == FloatK
+									&& ptr->getChildren().at(1)->getType() == IntK)
 							{
-
-								if ( ptr->getChildren().at(1)->getType() == IntK)
-								{
-									ptr->setType(TypeKind::BoolK);
-								} else 
-								{
-									auto data = ptr->getData();
-									::std::cerr << "[ERROR] can't convert \""
-										<< tmp_type1 
-										<< "\" to \"float\" with \""
-										<< ::boost::apply_visitor(get_visitor(), data)
-										<< "\" in line "
-										<< ptr->getLineno()
-										<< ::std::endl;
-									::std::exit(1);
-								}
+								ptr->setType(TypeKind::BoolK);
+							} else if ( ptr->getChildren().at(0)->getType() == IntK
+									&& ptr->getChildren().at(0)->getType() == FloatK)
+							{
+								ptr->setType(TypeKind::BoolK);
 							} else 
 							{
 								auto data = ptr->getData();
@@ -1929,13 +1943,20 @@ void analysis::evalType(const NodePtr& ptr)
 							switch(ptr->getChildren().at(0)->getType())
 							{
 								case TypeKind::BoolK:
-									tmp_type1 = "boolean";
+									tmp_type0 = "boolean";
 									break;
 								case TypeKind::StringK:
-									tmp_type1 = "string";
+									tmp_type0 = "string";
 									break;
 								case TypeKind::VoidK:
-									tmp_type1 = "void";
+									tmp_type0 = "void";
+									break;
+								case TypeKind::IntK:
+									tmp_type0 = "int";
+									break;
+								case TypeKind::FloatK:
+									tmp_type0 = "float";
+									break;
 							}
 
 							switch(ptr->getChildren().at(1)->getType())
@@ -1948,30 +1969,27 @@ void analysis::evalType(const NodePtr& ptr)
 									break;
 								case TypeKind::VoidK:
 									tmp_type1 = "void";
+									break;
+								case TypeKind::IntK:
+									tmp_type1 = "int";
+									break;
+								case TypeKind::FloatK:
+									tmp_type1 = "float";
+									break;
 							}
 
 							if ( ptr->getChildren().at(0)->getType()
 									== ptr->getChildren().at(1)->getType())
 							{
 								ptr->setType(ptr->getChildren().at(0)->getType());
-							} else if ( ptr->getChildren().at(0)->getType() == FloatK)
+							} else if ( ptr->getChildren().at(0)->getType() == FloatK
+									&& ptr->getChildren().at(1)->getType() == IntK)
 							{
-
-								if ( ptr->getChildren().at(1)->getType() == IntK)
-								{
-									ptr->setType(FloatK);
-								} else 
-								{
-									auto data = ptr->getData();
-									::std::cerr << "[ERROR] can't convert \""
-										<< tmp_type1 
-										<< "\" to \"float\" with \""
-										<< ::boost::apply_visitor(get_visitor(), data)
-										<< "\" in line "
-										<< ptr->getLineno()
-										<< ::std::endl;
-									::std::exit(1);
-								}
+								ptr->setType(FloatK);
+							} else if ( ptr->getChildren().at(0)->getType() == IntK
+									&& ptr->getChildren().at(1)->getType() == FloatK)
+							{
+								ptr->setType(FloatK);
 							} else 
 							{
 								auto data = ptr->getData();
@@ -2410,10 +2428,14 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 						}
 					case StmtKind::ComK:
 						{
+							auto tmp = trival("compound");
+							midcodes.push_back(tmp);
 							for ( auto it : ptr->getChildren())
 							{
 								genMidCode( it, label1, label2);
 							}
+							tmp = trival("end compound");
+							midcodes.push_back(tmp);
 							break;
 						}
 					case StmtKind::ExpK:
@@ -2654,8 +2676,21 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 								midcodes.push_back(tmp);
 								break;
 							}
-						case ExprKind::INTLITERAL:
 						case ExprKind::FLOATLITERAL:
+						case ExprKind::INTLITERAL:
+							{
+								auto data = ptr->getData();
+								symNodePtr tmpnode (new symTabElem);
+								tmpnode->name = ::boost::apply_visitor(get_visitor(), data);
+								tmpnode->nametype = 0;
+
+								auto ptr = current_tab->research_elem_global(tmpnode->name);
+								if ( ptr == nullptr)
+								{
+									tmpnode->floatcounter = FLOATLITERALCounter++;
+									current_tab->insert_elem(tmpnode);
+								}
+							}
 						case ExprKind::BOOLLITERAL:
 						case ExprKind::IdK:
 							{
@@ -2685,6 +2720,10 @@ void analysis::genMidCode()
 		::std::exit(1);
 	}
 
+	while ( current_tab->get_upptr_tab() != nullptr)
+	{
+		current_tab = current_tab->get_upptr_tab();
+	}
 	genMidCode( _root, "", "");
 	genFlag = true;
 }
@@ -2724,5 +2763,254 @@ void analysis::printMidCode()
 				break;
 		}
 	}
+}
+
+void analysis::genCode()
+{
+	::std::vector< ::std::string > literal;
+	::std::stack< int > counters;
+	auto now_tab = current_tab;
+	int counter = 0;
+
+	for (auto it : midcodes)
+	{
+		if ( it.getOperand() == "entry")
+		{
+			::std::cout << "1\n";
+			auto ptrs = 
+				current_tab->get_down_tabs();
+			for( auto ptr : ptrs)
+			{
+				if ( ptr->get_in_function() == it.getVal1().name)
+				{
+					now_tab = ptr;
+					break;
+				}
+			}
+			::std::cout << it.getVal1().name << ":\n";
+			::std::cout << "\tpush\trbp\n";
+			::std::cout << "\tmov \trbp, rsp\n";
+		} else if ( it.getOperand() == "end entry")
+		{
+			::std::cout << "2\n";
+			counter = 0;
+			while ( !counters.empty())
+			{
+				counters.pop();
+			}
+			now_tab = current_tab->get_upptr_tab();
+			::std::cout << "\tpop\trbp\n";
+			::std::cout << "\tret\n";
+		} else if ( it.getOperand() == "compound") 
+		{
+			::std::cout << "3\n";
+			counters.push(counter);
+			now_tab = now_tab->get_down_tabs().at(counter);
+			counter = 0;
+		} else if ( it.getOperand() == "end compound") 
+		{
+			::std::cout << "4\n";
+			counter = counters.top();
+			counters.pop();
+			now_tab = now_tab->get_upptr_tab();
+			++counter;
+		} else if ( it.getOperand() == "label")
+		{
+			::std::cout << "5\n";
+			::std::cout << it.getVal1().name << ":\n";
+		} else if ( it.getOperand() == "je" || it.getOperand() == "jmp")
+		{
+			::std::cout << "6\n";
+			::std::cout << it.getOperand()
+				<< "\t" << it.getVal1().name 
+				<< ::std::endl;
+		} else if ( it.getOperand() == "=")
+		{
+			::std::cout << "7\n";
+			if ( it.getRes().name.at(0) != '@')
+			{
+				auto ptr0 =
+					now_tab->research_elem_global(it.getRes().name);
+				auto ptr1 = 
+					now_tab->research_elem_global(it.getVal1().name);
+
+				if ( it.getRes().type == TypeKind::FloatK 
+						&& it.getVal1().name.at(0) == '@')
+				{
+					::std::cout << "\tmovss DWORD [rbp-"
+						<< ptr0->offset
+						<< "], xmm0\n";
+				} else if (it.getRes().type == TypeKind::IntK 
+						&& it.getVal1().name.at(0) == '@')
+				{
+					::std::cout << "\tmov DWORD [rbp-"
+						<< ptr0->offset
+						<< "], eax\n";
+				} else if ( ptr1->nametype != 0)
+				{
+					if ( it.getRes().type == TypeKind::IntK)
+					{
+						if ( it.getVal1().type == TypeKind::IntK)
+						{
+							::std::cout << "\tmov\teax, DWORD [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tmov\tDWORD [rbp-"
+								<< ptr0->offset
+								<< "], eax\n";
+						} else if ( it.getVal1().type == TypeKind::FloatK)
+						{
+							::std::cout << "\tmovss\t xmm0, DWORD [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tcvtss2si\teax, xmm0\n";
+							::std::cout << "\tmov DWORD [rbp-\t"
+								<< ptr0->offset
+								<< "], eax\n";
+						}
+					} else if ( it.getRes().type == TypeKind::FloatK)
+					{
+						if ( it.getVal1().type == TypeKind::FloatK)
+						{
+							::std::cout << "\tmovss\txmm0, DWORD [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tmovss\tDWORD [rbp-"
+								<< ptr0->offset
+								<< "], xmm0\n";
+						} else if ( it.getVal1().type == TypeKind::IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, DWORD [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tmovss DWORD [rbp-"
+								<< ptr0->offset
+								<< "], xmm0\n";
+						}
+					} 
+				} else 
+				{
+					if ( it.getRes().type == TypeKind::FloatK)
+					{
+						bool flag = false;
+						for ( auto x : literal)
+						{
+							if ( x == it.getVal1().name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(it.getVal1().name);
+						}
+						auto ptr = current_tab->research_elem_global(it.getVal1().name);
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tmovss\tDWORD [rbp-"
+							<< ptr0->offset
+							<< "], xmm0\n";
+					} else 
+					{
+						::std::cout << "\tmov\teax, " << it.getVal1().name << ::std::endl;
+						::std::cout << "\tmov\tDWORD [rbp-"
+							<< ptr0->offset
+							<< "], eax\n";
+					}
+				}
+			}  
+		} else if ( it.getOperand() == "return")
+		{
+			::std::cout << "8\n";
+			if ( it.getVal1().name.at(0) != '@' )
+			{
+				auto ptr = 
+					now_tab->research_elem_global(it.getVal1().name);
+				auto func = current_tab->research_elem_global(now_tab->get_in_function());
+				if ( ptr->nametype != 0)
+				{
+					if ( func->datatype == TypeKind::IntK)
+					{
+						if ( ptr->datatype == TypeKind::IntK)
+						{
+							::std::cout << "\tmov\teax, DWORD [rbp-" 
+							<< ptr->offset
+								<< "]\n";
+						} else 
+						{
+							::std::cout << "\tmovss\txmm0, [rbp-"
+								<< ptr->offset
+								<< "]\n";
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					} else 
+					{
+						if ( ptr->datatype == TypeKind::FloatK)
+						{
+							::std::cout << "\tmovss\txmm0, DWORD [rbp-"
+								<< ptr->offset
+								<< "]\n";
+						} else 
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, DWORD [rbp-"
+								<< ptr->offset
+								<< "]\n";
+						}
+					}
+
+				} else 
+				{
+					if ( it.getVal1().type == TypeKind::IntK)
+					{
+						::std::cout << "\tmov\teax, "
+							<<  ptr->name << ::std::endl;
+					} else 
+					{
+						bool flag = false;
+						for ( auto x : literal)
+						{
+							if ( x == it.getVal1().name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(it.getVal1().name);
+						}
+						auto ptr = current_tab->research_elem_global(it.getVal1().name);
+						::std::cout << "\tmovss\txmm0, DWORD "
+							<< ".L" << ptr->floatcounter
+							<< "[rip]\n";
+					}
+				}
+			}
+		} else 
+		{
+			::std::cout << "9\n";
+			continue;
+		}
+	}
+
+	for(auto x : literal)
+	{
+		auto ptr = current_tab->research_elem(x);
+		::std::cout << ".L" << ptr->floatcounter << ":\n";
+
+		::std::stringstream ss;
+		int s;
+		float* tmpfloat = (float *)&s;
+		ss << x;
+		ss >> *tmpfloat;
+		::std::cout << "\t.long\t" << s << ::std::endl;
+		::std::cout << "\t.align\t4\n";
+		::std::cout << ::std::endl;
+	}
+
 }
 }
