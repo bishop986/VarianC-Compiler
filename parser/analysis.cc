@@ -989,6 +989,7 @@ NodePtr analysis::additive_expr()
 		while (1)
 		{
 			tmp_ptr = multiplicative_expr();
+			tmp_cur_ptr->appendChild(tmp_ptr);
 
 			if ( tmp->getType() == TYPE::ADDOP)
 			{
@@ -996,13 +997,11 @@ NodePtr analysis::additive_expr()
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::AdditiveK);
-				tmp_in_ptr->appendChild(tmp_ptr);
-
-				tmp_cur_ptr->appendChild(tmp_in_ptr);
+				tmp_in_ptr->appendChild(tmp_cur_ptr);
 				tmp_cur_ptr = tmp_in_ptr;
 			} else 
 			{
-				tmp_cur_ptr->appendChild(tmp_ptr);
+				ret = tmp_cur_ptr;
 				break;
 			}
 		}
@@ -1036,6 +1035,7 @@ NodePtr analysis::multiplicative_expr()
 		while (1)
 		{
 			tmp_ptr = unary_expr();
+			tmp_cur_ptr->appendChild(tmp_ptr);
 
 			if ( tmp->getType() == TYPE::MULOP)
 			{
@@ -1043,13 +1043,11 @@ NodePtr analysis::multiplicative_expr()
 				match(tmp->getVal());
 				tmp_in_ptr->setNodeKind(NodeKind::ExprK);
 				tmp_in_ptr->setKind(ExprKind::MulK);
-				tmp_in_ptr->appendChild(tmp_ptr);
-
-				tmp_cur_ptr->appendChild(tmp_in_ptr);
+				tmp_in_ptr->appendChild(tmp_cur_ptr);
 				tmp_cur_ptr = tmp_in_ptr;
 			} else 
 			{
-				tmp_cur_ptr->appendChild(tmp_ptr);
+				ret = tmp_cur_ptr;
 				break;
 			}
 		}
@@ -1630,21 +1628,10 @@ void analysis::evalType(const NodePtr& ptr)
 								}
 								if ( ptr->getType() != ptr->getChildren().at(0)->getType())
 								{
-									if ( ptr->getType() != TypeKind::FloatK)
-									{
-										std::cerr << "[ERROR] Incompitable type \""
-											<< tmp_str2
-											<< "\" initialiser with "
-											<< "variable \""
-											<< vname
-											<< "\" type \""
-											<< tmp_str1
-											<< "\" in line "
-											<< ptr->getLineno()
-											<< ::std::endl;
-										::std::exit(1);
-									} else if ( ptr->getChildren().at(0)->getType() != FloatK
-											&& ptr->getChildren().at(0)->getType() != IntK)
+									if (!((ptr->getChildren().at(0)->getType() == TypeKind::FloatK
+												&& ptr->getType() == TypeKind::IntK)
+											||( ptr->getChildren().at(0)->getType() == TypeKind::IntK
+												&& ptr->getType() == TypeKind::FloatK)))
 									{
 										std::cerr << "[ERROR] Incompitable type initialiser with "
 											<< "variable \""
@@ -1719,7 +1706,7 @@ void analysis::evalType(const NodePtr& ptr)
 							} else 
 							{
 								evalType(ptr->getChildren().at(0));
-								ptr->setType(this->tmp_dType);
+								ptr->setType(ptr->getChildren().at(0)->getType());
 							}
 							auto tmp_node 
 								= current_tab->research_elem_global(
@@ -1938,6 +1925,21 @@ void analysis::evalType(const NodePtr& ptr)
 							evalType(ptr->getChildren().at(0));
 							evalType(ptr->getChildren().at(1));
 
+							if ( ptr->getKind() == ExprKind::MulK 
+									|| ptr->getKind() == ExprKind::AdditiveK)
+							{
+								if ( (ptr->getChildren().at(0)->getType() != IntK
+											&& ptr->getChildren().at(0)->getType() != FloatK)
+										|| (ptr->getChildren().at(1)->getType() != FloatK
+											&& ptr->getChildren().at(1)->getType() != IntK))
+								{
+									::std::cout << "[ERROR] Type not support operator in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
+							}
+
 							::std::string tmp_type1;
 							::std::string tmp_type0;
 							switch(ptr->getChildren().at(0)->getType())
@@ -1978,31 +1980,62 @@ void analysis::evalType(const NodePtr& ptr)
 									break;
 							}
 
-							if ( ptr->getChildren().at(0)->getType()
-									== ptr->getChildren().at(1)->getType())
+							if (ptr->getKind() == AssignK)
 							{
-								ptr->setType(ptr->getChildren().at(0)->getType());
-							} else if ( ptr->getChildren().at(0)->getType() == FloatK
-									&& ptr->getChildren().at(1)->getType() == IntK)
-							{
-								ptr->setType(FloatK);
-							} else if ( ptr->getChildren().at(0)->getType() == IntK
-									&& ptr->getChildren().at(1)->getType() == FloatK)
-							{
-								ptr->setType(FloatK);
+								if ( ptr->getChildren().at(0)->getType()
+										== ptr->getChildren().at(1)->getType())
+								{
+									ptr->setType(ptr->getChildren().at(0)->getType());
+								} else if ( ptr->getChildren().at(0)->getType() == FloatK
+										&& ptr->getChildren().at(1)->getType() == IntK)
+								{
+									ptr->setType(FloatK);
+								} else if ( ptr->getChildren().at(0)->getType() == IntK
+										&& ptr->getChildren().at(1)->getType() == FloatK)
+								{
+									ptr->setType(IntK);
+								} else 
+								{
+									auto data = ptr->getData();
+									::std::cerr << "[ERROR] can't convert \""
+										<< tmp_type1 
+										<< "\" to \""
+										<< tmp_type0
+										<< "\" with \""
+										<< ::boost::apply_visitor(get_visitor(), data)
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
 							} else 
 							{
-								auto data = ptr->getData();
-								::std::cerr << "[ERROR] can't convert \""
-									<< tmp_type1 
-									<< "\" to \""
-									<< tmp_type0
-									<< "\" with \""
-									<< ::boost::apply_visitor(get_visitor(), data)
-									<< "\" in line "
-									<< ptr->getLineno()
-									<< ::std::endl;
-								::std::exit(1);
+								if ( ptr->getChildren().at(0)->getType()
+										== ptr->getChildren().at(1)->getType())
+								{
+									ptr->setType(ptr->getChildren().at(0)->getType());
+								} else if ( ptr->getChildren().at(0)->getType() == FloatK
+										&& ptr->getChildren().at(1)->getType() == IntK)
+								{
+									ptr->setType(FloatK);
+								} else if ( ptr->getChildren().at(0)->getType() == IntK
+										&& ptr->getChildren().at(1)->getType() == FloatK)
+								{
+									ptr->setType(FloatK);
+								} else 
+								{
+									auto data = ptr->getData();
+									::std::cerr << "[ERROR] can't convert \""
+										<< tmp_type1 
+										<< "\" to \""
+										<< tmp_type0
+										<< "\" with \""
+										<< ::boost::apply_visitor(get_visitor(), data)
+										<< "\" in line "
+										<< ptr->getLineno()
+										<< ::std::endl;
+									::std::exit(1);
+								}
 							}
 							break;
 						}
@@ -2385,6 +2418,7 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 												ptr->getType())));
 								midcodes.push_back(tmp);
 							}
+							midcodes.push_back(trival("end func"));
 							break;
 						}
 					case StmtKind::ForK:
@@ -2558,6 +2592,8 @@ void analysis::genMidCode( const NodePtr& ptr, const ::std::string& label1, cons
 								auto data = ptr->getData();
 								auto node_name = ::boost::apply_visitor(get_visitor(), data);
 								auto tmpname = newtmpVal();
+
+								data = ptr->getChildren().at(0)->getData();
 
 								ptr->setStrVal(tmpname);
 								auto tmp = trival(
@@ -2741,24 +2777,36 @@ void analysis::printMidCode()
 				::std::cout << it.getOperand()
 					<< " "
 					<< it.getVal1().name
+					<< "_"
+					<< it.getVal1().type
 					<< ::std::endl;
 				break;
 			case 2:
 				::std::cout << it.getRes().name
+					<< "_"
+					<< it.getRes().type
 					<< " "
 					<< it.getOperand()
 					<< " "
 					<< it.getVal1().name
+					<< "_"
+					<< it.getVal1().type
 					<< ::std::endl;
 				break;
 			case 3:
 				::std::cout << it.getRes().name
+					<< "_"
+					<< it.getRes().type
 					<< " = "
 					<< it.getVal1().name
+					<< "_"
+					<< it.getVal1().type
 					<< " "
 					<< it.getOperand()
 					<< " "
 					<< it.getVal2().name
+					<< "_"
+					<< it.getVal2().type
 					<< ::std::endl;
 				break;
 		}
@@ -2771,12 +2819,18 @@ void analysis::genCode()
 	::std::stack< int > counters;
 	auto now_tab = current_tab;
 	int counter = 0;
+	int funccounter = 0;
+
+	::std::cout << "\t.file\t\"target.c\"\n";
+	::std::cout << "\t.intel_syntax noprefix\n";
+	::std::cout << "\t.text\n";
 
 	for (auto it : midcodes)
 	{
 		if ( it.getOperand() == "entry")
 		{
-			::std::cout << "1\n";
+			::std::cout << "\t.globl\t" << it.getVal1().name << ::std::endl;
+			::std::cout << "\t.type\t" << it.getVal1().name << ", @function" << ::std::endl;
 			auto ptrs = 
 				current_tab->get_down_tabs();
 			for( auto ptr : ptrs)
@@ -2788,8 +2842,17 @@ void analysis::genCode()
 				}
 			}
 			::std::cout << it.getVal1().name << ":\n";
+			::std::cout << ".LFB" << funccounter << ::std::endl;
+			::std::cout << "\t.cfi_startproc\n";
 			::std::cout << "\tpush\trbp\n";
+			::std::cout << "\tcfi_def_cfa_offset 16\n";
 			::std::cout << "\tmov \trbp, rsp\n";
+			::std::cout << "\t.cfi_def_cfa_register 6\n";
+		} else if (it.getOperand() == "end func") {
+
+			::std::cout << "11\n";
+			::std::cout << "\tpop\trbp\n";
+			::std::cout << "\tret\n";
 		} else if ( it.getOperand() == "end entry")
 		{
 			::std::cout << "2\n";
@@ -2798,9 +2861,23 @@ void analysis::genCode()
 			{
 				counters.pop();
 			}
-			now_tab = current_tab->get_upptr_tab();
-			::std::cout << "\tpop\trbp\n";
+			if ( now_tab->get_in_function() == "main")
+			{
+				::std::cout << "\tmov\teax, 0\n";
+				::std::cout << "\tleave\n";
+			} else 
+			{
+				::std::cout << "\tpop\trbp\n";
+			}
+			::std::cout << "\t.cif_def_cfa 7, 8\n";
 			::std::cout << "\tret\n";
+			::std::cout << "\t.cfi_endproc\n";
+			::std::cout << ".LFE" << funccounter << ::std::endl;
+			::std::cout << "\t.size\t" 
+				<< now_tab->get_in_function() << ", .-"
+				<< now_tab->get_in_function() << ::std::endl;
+			++funccounter;
+			now_tab = current_tab->get_upptr_tab();
 		} else if ( it.getOperand() == "compound") 
 		{
 			::std::cout << "3\n";
@@ -2824,6 +2901,848 @@ void analysis::genCode()
 			::std::cout << it.getOperand()
 				<< "\t" << it.getVal1().name 
 				<< ::std::endl;
+		} else if ( it.getOperand() == "+") 
+		{
+			::std::cout << "10\n";
+			auto ptr0 = 
+				now_tab->research_elem_global(it.getVal1().name);
+			auto ptr1 =
+				now_tab->research_elem_global(it.getVal2().name);
+			if ( ptr0 == nullptr && ptr1 != nullptr)
+			{
+				if ( ptr1->nametype == 0) 
+				{
+					if ( it.getVal1().type == TypeKind::IntK)
+					{
+						::std::cout << "\tadd\teax, " << ptr1->name << ::std::endl;
+						if ( it.getRes().type == FloatK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+						}
+					} else if ( it.getVal1().type == TypeKind::FloatK)
+					{
+						bool flag = false;
+						for ( auto x : literal)
+						{
+							if ( x == ptr1->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag)
+						{
+							literal.push_back(ptr1->name);
+						}
+						::std::cout << "\tmovaps\txmm1, xmm0\n";
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0";
+						}
+					}
+				} else if ( it.getVal1().type == TypeKind::IntK)
+				{
+					if ( it.getVal2().type == TypeKind::IntK)
+					{
+						::std::cout << "\tadd\teax, [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						if ( it.getRes().type == TypeKind::FloatK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+						}
+					} else if ( it.getVal2().type == TypeKind::FloatK)
+					{
+						if ( it.getRes().type == TypeKind::IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						} else if ( it.getRes().type == TypeKind::FloatK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+							::std::cout << "\tmovss\txmm1, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, xmm1\n";
+						}
+					}
+				} else if ( it.getVal1().type == TypeKind::FloatK)
+				{
+					if ( it.getVal2().type == TypeKind::FloatK)
+					{
+						::std::cout << "\taddss xmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					} else if ( it.getVal2().type == TypeKind::IntK)
+					{
+						::std::cout << "\tmovaps\txmm1, xmm0\n";
+						::std::cout << "\tcvtsi2ss\txmm0, [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					}
+				}
+			} else if ( ptr1 == nullptr && ptr0 != nullptr)
+			{
+				if ( ptr0->nametype == 0) 
+				{
+					if ( it.getVal2().type == TypeKind::IntK)
+					{
+						::std::cout << "\tadd\teax, " << ptr0->name << ::std::endl;
+						if ( it.getRes().type == FloatK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+						}
+					} else if ( it.getVal2().type == TypeKind::FloatK)
+					{
+						bool flag = false;
+						for ( auto x : literal)
+						{
+							if ( x == ptr1->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag)
+						{
+							literal.push_back(ptr0->name);
+						}
+						::std::cout << "\tmovaps\txmm1, xmm0\n";
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr0->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0";
+						}
+					}
+				} else if ( it.getVal2().type == TypeKind::IntK)
+				{
+					if ( it.getVal1().type == TypeKind::IntK)
+					{
+						::std::cout << "\tadd\teax, [rbp-"
+							<< ptr0->offset
+							<< "]\n";
+						if ( it.getRes().type == TypeKind::FloatK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+						}
+					} else if ( it.getVal1().type == TypeKind::FloatK)
+					{
+						if ( it.getRes().type == TypeKind::IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						} else if ( it.getRes().type == TypeKind::FloatK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+							::std::cout << "\tmovss\txmm1, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, xmm1\n";
+						}
+					}
+				} else if ( it.getVal2().type == TypeKind::FloatK)
+				{
+					if ( it.getVal1().type == TypeKind::FloatK)
+					{
+						::std::cout << "\taddss xmm0, DWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "]\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					} else if ( it.getVal1().type == TypeKind::IntK)
+					{
+						::std::cout << "\tmovaps\txmm1, xmm0\n";
+						::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					}
+				}
+			} else 
+			{
+				if ( ptr0->nametype == 0 && ptr1->nametype == 0)
+				{
+					::std::stringstream ss;
+					ss << ptr0->name;
+					float tmp;
+					float tmp2;
+					ss >> tmp;
+					ss.clear();
+					ss << ptr1->name;
+					ss >> tmp2;
+					tmp = tmp + tmp2;
+
+					ss.clear();
+					ss << tmp;
+
+					if ( it.getRes().type == IntK)
+					{
+						::std::cout << "\tmov\teax, " << ss.str() << ::std::endl;
+					} else if ( it.getRes().type == FloatK)
+					{
+						bool flag = false;
+						for ( auto it:literal)
+						{
+							if ( ptr0->name == it)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr0->name);
+							flag = false;
+						}
+						for ( auto it : literal)
+						{
+							if ( ptr1->name == it)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr1->name);
+						}
+						::std::cout << "\tmovss\txmm0, L."
+							<< ptr0->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tmovss\txmm1, L."
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+					}
+				} else if ( ptr0->nametype != 0 && ptr1->nametype == 0)
+				{
+					if ( it.getVal2().type == IntK && it.getRes().type == IntK)
+					{
+						::std::stringstream ss;
+						ss << ptr1->name;
+						int tmp;
+						ss >> tmp;
+						::std::cout << "\tmov\teax, " << ss.str() << ::std::endl;
+						::std::cout << "\tadd eax, DWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "]\n";
+					} else if ( it.getVal2().type == IntK && it.getRes().type == FloatK)
+					{
+						bool flag = false;
+						for ( auto it:literal)
+						{
+							if ( ptr1->name == it)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr1->name);
+							flag = false;
+						}
+						::std::cout << "pxor xmm0, xmm0\n";
+						::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "]\n";
+						::std::cout << "\tmovss\txmm1, L."
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+					} else if ( it.getVal2().type == FloatK)
+					{
+						bool flag = false;
+						for ( auto it:literal)
+						{
+							if ( ptr1->name == it)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr1->name);
+							flag = false;
+						}
+						::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "]\n";
+						::std::cout << "\tmovss\txmm1, L."
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					}
+				} else if ( ptr1->nametype != 0 && ptr0->nametype == 0)
+				{
+					if ( it.getVal1().type == IntK && it.getRes().type == IntK)
+					{
+						::std::stringstream ss;
+						ss << ptr0->name;
+						int tmp;
+						ss >> tmp;
+						::std::cout << "\tmov\teax, " << ss.str() << ::std::endl;
+						::std::cout << "\tadd eax, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+					} else if ( it.getVal1().type == IntK && it.getRes().type == FloatK)
+					{
+						bool flag = false;
+						for ( auto it:literal)
+						{
+							if ( ptr0->name == it)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr0->name);
+							flag = false;
+						}
+						::std::cout << "pxor xmm0, xmm0\n";
+						::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tmovss\txmm1, L."
+							<< ptr0->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+					} else if ( it.getVal1().type == FloatK)
+					{
+						bool flag = false;
+						for ( auto it:literal)
+						{
+							if ( ptr0->name == it)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr0->name);
+							flag = false;
+						}
+						::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tmovss\txmm1, L."
+							<< ptr0->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\taddss\txmm0, xmm1\n";
+						if ( it.getRes().type == IntK)
+						{
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					}
+				} else 
+				{
+					if ( it.getRes().type == IntK)
+					{
+						if ( it.getVal1().type == IntK && it.getVal2().type == IntK)
+						{
+							::std::cout << "\tmov\teax, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\tadd\teax, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+						} else if ( it.getVal1().type == FloatK && it.getVal2().type == IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						} else if ( it.getVal2().type == FloatK && it.getVal1().type == IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss xmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tcvtss2si\teax, xmm0\n";
+						} else
+						{
+							::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\tcvttss2si\teax, xmm0\n";
+						}
+					} else if ( it.getRes().type == FloatK)
+					{
+						if ( it.getVal1().type == IntK && it.getVal2().type == IntK)
+						{
+							::std::cout << "\tmov\teax, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\tadd\teax, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss xmm0, eax\n";
+						} else if ( it.getVal1().type == FloatK && it.getVal2().type == IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+						} else if ( it.getVal2().type == FloatK && it.getVal1().type == IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss xmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr1->offset
+								<< "]\n";
+						} else
+						{
+							::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+							::std::cout << "\taddss\txmm0, DWORD PTR [rbp-"
+								<< ptr0->offset
+								<< "]\n";
+						}
+					}
+				}
+
+			}
+		} else if (it.getOperand() == "-")
+		{
+			auto ptr1 = 
+				now_tab->research_elem_global(it.getVal1().name);
+			auto ptr2 =
+				now_tab->research_elem_global(it.getVal2().name);
+
+			if ( ptr1 == nullptr && ptr2 != nullptr)
+			{
+				if ( ptr2->nametype == 0)
+				{
+					bool flag = false;
+					if ( it.getVal2().type == IntK)
+					{
+						if (it.getVal1().type == IntK)
+						{
+							::std::cout << "\tsub eax, " << ptr2->name << ::std::endl;
+						} else if (it.getVal1().type == FloatK)
+						{
+							for(auto it : literal)
+							{
+								if ( it == ptr2->name)
+								{
+									flag = true;
+									break;
+								}
+							}
+							if ( !flag)
+							{
+								literal.push_back(ptr2->name);
+							}
+							::std::cout << "\tmovss\txmm1, .L"
+								<< ptr2->floatcounter
+								<< "[rip]\n";
+							::std::cout << "\tsubss\txmm0, xmm1\n";
+						}
+					} else if (it.getVal2().type == FloatK)
+					{
+						if (it.getVal1().type == FloatK)
+						{
+							::std::cout << "\tmovss\txmm1, .L"
+								<< ptr2->floatcounter
+								<< "[rip]\n";
+							::std::cout << "\tsubss\txmm0, xmm1\n";
+						} else if ( it.getVal1().type == IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+							::std::cout << "\tmovss\txmm1, .L"
+								<< ptr2->floatcounter
+								<< "[rip]\n";
+						}
+					}
+				} else if ( it.getVal1().type == IntK && it.getVal2().type == IntK)
+				{
+					::std::cout << "\tsub\teax, DWORD PTR [rbp-"
+						<< ptr2->offset
+						<< "]\n";
+				} else if ( it.getVal1().type == FloatK && it.getVal2().type == IntK)
+				{
+					::std::cout << "\tpxor\txmm1, xmm1\n";
+					::std::cout << "\tcvtsi2ss\txmm1, DWORD PTR [rbp-"
+						<< ptr2->offset
+						<< "]\n";
+					::std::cout << "\tsubss\txmm0, xmm1\n";
+				} else if ( it.getVal1().type == FloatK && it.getVal2().type == FloatK)
+				{
+					::std::cout << "\tsubss\txmm0, DWORD PTR [rbp"
+						<< ptr2->offset
+						<< "]\n";
+				}
+			} else if (ptr1 != nullptr && ptr2 == nullptr)
+			{
+				if ( ptr1->nametype == 0)
+				{
+					bool flag = false;
+					if ( it.getVal1().type == IntK)
+					{
+						if (it.getVal2().type == IntK)
+						{
+							::std::cout << "\tsub eax, " << ptr1->name << ::std::endl;
+						} else if (it.getVal2().type == FloatK)
+						{
+							for(auto it : literal)
+							{
+								if ( it == ptr1->name)
+								{
+									flag = true;
+									break;
+								}
+							}
+							if ( !flag)
+							{
+								literal.push_back(ptr1->name);
+							}
+							::std::cout << "\tmovss\txmm1, .L"
+								<< ptr1->floatcounter
+								<< "[rip]\n";
+							::std::cout << "\tsubss\txmm0, xmm1\n";
+						}
+					} else if (it.getVal1().type == FloatK)
+					{
+						if (it.getVal2().type == FloatK)
+						{
+							::std::cout << "\tmovss\txmm1, .L"
+								<< ptr1->floatcounter
+								<< "[rip]\n";
+							::std::cout << "\tsubss\txmm0, xmm1\n";
+						} else if ( it.getVal2().type == IntK)
+						{
+							::std::cout << "\tpxor\txmm0, xmm0\n";
+							::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+							::std::cout << "\tmovss\txmm1, .L"
+								<< ptr1->floatcounter
+								<< "[rip]\n";
+						}
+					}
+				} else if ( it.getVal2().type == IntK && it.getVal1().type == IntK)
+				{
+					::std::cout << "\tsub\teax, DWORD PTR [rbp-"
+						<< ptr1->offset
+						<< "]\n";
+				} else if ( it.getVal2().type == FloatK && it.getVal1().type == IntK)
+				{
+					::std::cout << "\tpxor\txmm1, xmm1\n";
+					::std::cout << "\tcvtsi2ss\txmm1, DWORD PTR [rbp-"
+						<< ptr1->offset
+						<< "]\n";
+					::std::cout << "\tsubss\txmm0, xmm1\n";
+				} else if ( it.getVal2().type == FloatK && it.getVal1().type == FloatK)
+				{
+					::std::cout << "\tsubss\txmm0, DWORD PTR [rbp"
+						<< ptr1->offset
+						<< "]\n";
+				}
+			} else if ( ptr1 != nullptr && ptr2 != nullptr)
+			{
+				if ( ptr1->nametype == 0 && ptr2->nametype == 0)
+				{
+					if ( it.getVal1().type == IntK && it.getVal2().type == IntK)
+					{
+						::std::stringstream ss;
+						int tmp1;
+						int tmp2;
+						ss << ptr1->name;
+						ss >> tmp1;
+						ss.clear();
+						ss << ptr2->name;
+						ss >> tmp2;
+
+						::std::cout << "\tmov\teax, " << (tmp1-tmp2) << ::std::endl;
+					} else if ( it.getVal1().type == FloatK || it.getVal2().type == FloatK)
+					{
+						bool flag = false;
+
+						for ( auto it : literal)
+						{
+							if ( it == ptr1->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr1->name);
+							flag = false;
+						}
+						for ( auto it : literal)
+						{
+							if ( it == ptr2->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag )
+						{
+							literal.push_back(ptr2->name);
+							flag = false;
+						}
+
+						::std::cout << "\tmovss\txmm0, DWORD PTR .L"
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tsubss\txmm0, DWORD PTR .L"
+							<< ptr2->floatcounter
+							<< "[rip]\n";
+					}
+				} else if ( ptr1->nametype == 0 && ptr2->nametype != 0)
+				{
+					if ( it.getVal1().type == IntK && it.getVal2().type == IntK)
+					{
+						::std::cout << "\tmov\teax, " << ptr1->name << ::std::endl;
+						::std::cout << "\tsub\teax, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "]\n";
+					} else if (it.getVal1().type == IntK && it.getVal2().type == FloatK)
+					{
+						::std::cout << "\tmovss\txmm0, DOWRD PTR .L"
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						bool flag = false;
+						for ( auto it : literal)
+						{
+							if ( it == ptr1->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag)
+						{
+							literal.push_back(ptr1->name);
+						}
+						::std::cout << "\tsubss\txmm0, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "]\n";
+					} else if ( it.getVal1().type == FloatK && it.getVal2().type == IntK)
+					{
+						bool flag = false;
+						for ( auto it : literal)
+						{
+							if ( it == ptr1->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+
+						if ( !flag)
+						{
+							literal.push_back(ptr1->name);
+						}
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tpxor\txmm1, xmm1\n";
+						::std::cout << "\tcvtsi2ss\txmm1, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "]\n";
+						::std::cout << "\tsubss\txmm0, xmm1\n";
+					} else 
+					{
+						bool flag = false;
+						for ( auto it : literal)
+						{
+							if ( it == ptr1->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag)
+						{
+							literal.push_back(ptr1->name);
+						}
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr1->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tsubss\txmm0, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "[rip]\n";
+					}
+				} else if ( ptr1->nametype != 0 && ptr2->nametype == 0)
+				{
+					if ( it.getVal2().type == IntK && it.getVal1().type == IntK)
+					{
+						::std::cout << "\tmov\teax, " << ptr2->name << ::std::endl;
+						::std::cout << "\tsub\teax, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+					} else if (it.getVal2().type == IntK && it.getVal1().type == FloatK)
+					{
+						::std::cout << "\tmovss\txmm0, DOWRD PTR .L"
+							<< ptr2->floatcounter
+							<< "[rip]\n";
+						bool flag = false;
+						for ( auto it : literal)
+						{
+							if ( it == ptr2->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag)
+						{
+							literal.push_back(ptr2->name);
+						}
+						::std::cout << "\tsubss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+					} else if ( it.getVal2().type == FloatK && it.getVal1().type == IntK)
+					{
+						bool flag = false;
+						for ( auto it : literal)
+						{
+							if ( it == ptr2->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+
+						if ( !flag)
+						{
+							literal.push_back(ptr2->name);
+						}
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr2->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tpxor\txmm1, xmm1\n";
+						::std::cout << "\tcvtsi2ss\txmm1, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tsubss\txmm0, xmm1\n";
+					} else 
+					{
+						bool flag = false;
+						for ( auto it : literal)
+						{
+							if ( it == ptr2->name)
+							{
+								flag = true;
+								break;
+							}
+						}
+						if ( !flag)
+						{
+							literal.push_back(ptr2->name);
+						}
+						::std::cout << "\tmovss\txmm0, .L"
+							<< ptr2->floatcounter
+							<< "[rip]\n";
+						::std::cout << "\tsubss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "[rip]\n";
+					}
+
+				} else if ( ptr1->nametype != 0 && ptr2->nametype != 0)
+				{
+					if ( it.getVal1().type == IntK && it.getVal2().type == IntK)
+					{
+						::std::cout << "\tmov\teax, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tsub\teax, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "]\n";
+					} else if (it.getVal1().type == FloatK && it.getVal2().type == FloatK)
+					{
+						::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tsubss\txmm0, DWORD PTR [rbp-"
+							<< ptr2->offset;
+					} else if ( it.getVal1().type == IntK && it.getVal2().type == FloatK)
+					{
+						::std::cout << "\tpxor\txmm0, xmm0\n";
+						::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tsubss\txmm0, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "]\n";
+					} else if ( it.getVal1().type == FloatK && it.getVal2().type == IntK)
+					{
+						::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
+							<< ptr1->offset
+							<< "]\n";
+						::std::cout << "\tpxor\txmm1, xmm1\n";
+						::std::cout << "\tcvtsi2ss\txmm1, DWORD PTR [rbp-"
+							<< ptr2->offset
+							<< "]\n";
+						::std::cout << "\tsubss\txmm0, xmm1\n";
+					}
+				}
+			}
+
 		} else if ( it.getOperand() == "=")
 		{
 			::std::cout << "7\n";
@@ -2837,34 +3756,53 @@ void analysis::genCode()
 				if ( it.getRes().type == TypeKind::FloatK 
 						&& it.getVal1().name.at(0) == '@')
 				{
-					::std::cout << "\tmovss DWORD [rbp-"
-						<< ptr0->offset
-						<< "], xmm0\n";
+					if ( it.getVal1().type == FloatK)
+					{
+						::std::cout << "\tmovss\tDWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "], xmm0\n";
+					} else if (it.getVal1().type == IntK)
+					{
+						::std::cout << "\tpxor\txmm0, xmm0\n";
+						::std::cout << "\tcvtsi2ss\txmm0, eax\n";
+						::std::cout << "\tmovss\tDWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "], xmm0\n";
+					}
 				} else if (it.getRes().type == TypeKind::IntK 
 						&& it.getVal1().name.at(0) == '@')
 				{
-					::std::cout << "\tmov DWORD [rbp-"
-						<< ptr0->offset
-						<< "], eax\n";
+					if ( it.getVal1().type == IntK)
+					{
+						::std::cout << "\tmov DWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "], eax\n";
+					} else if ( it.getVal1().type == FloatK)
+					{
+						::std::cout << "\tcvttss2si\teax, xmm0\n";
+						::std::cout << "\tmov\tDWORD PTR [rbp-"
+							<< ptr0->offset
+							<< "], eax\n";
+					}
 				} else if ( ptr1->nametype != 0)
 				{
 					if ( it.getRes().type == TypeKind::IntK)
 					{
 						if ( it.getVal1().type == TypeKind::IntK)
 						{
-							::std::cout << "\tmov\teax, DWORD [rbp-"
+							::std::cout << "\tmov\teax, DWORD PTR [rbp-"
 								<< ptr1->offset
 								<< "]\n";
-							::std::cout << "\tmov\tDWORD [rbp-"
+							::std::cout << "\tmov\tDWORD PTR [rbp-"
 								<< ptr0->offset
 								<< "], eax\n";
 						} else if ( it.getVal1().type == TypeKind::FloatK)
 						{
-							::std::cout << "\tmovss\t xmm0, DWORD [rbp-"
+							::std::cout << "\tmovss\t xmm0, DWORD PTR [rbp-"
 								<< ptr1->offset
 								<< "]\n";
 							::std::cout << "\tcvtss2si\teax, xmm0\n";
-							::std::cout << "\tmov DWORD [rbp-\t"
+							::std::cout << "\tmov DWORD PTR [rbp-\t"
 								<< ptr0->offset
 								<< "], eax\n";
 						}
@@ -2872,19 +3810,19 @@ void analysis::genCode()
 					{
 						if ( it.getVal1().type == TypeKind::FloatK)
 						{
-							::std::cout << "\tmovss\txmm0, DWORD [rbp-"
+							::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
 								<< ptr1->offset
 								<< "]\n";
-							::std::cout << "\tmovss\tDWORD [rbp-"
+							::std::cout << "\tmovss\tDWORD PTR [rbp-"
 								<< ptr0->offset
 								<< "], xmm0\n";
 						} else if ( it.getVal1().type == TypeKind::IntK)
 						{
 							::std::cout << "\tpxor\txmm0, xmm0\n";
-							::std::cout << "\tcvtsi2ss\txmm0, DWORD [rbp-"
+							::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
 								<< ptr1->offset
 								<< "]\n";
-							::std::cout << "\tmovss DWORD [rbp-"
+							::std::cout << "\tmovss DWORD PTR [rbp-"
 								<< ptr0->offset
 								<< "], xmm0\n";
 						}
@@ -2910,22 +3848,27 @@ void analysis::genCode()
 						::std::cout << "\tmovss\txmm0, .L"
 							<< ptr->floatcounter
 							<< "[rip]\n";
-						::std::cout << "\tmovss\tDWORD [rbp-"
+						::std::cout << "\tmovss\tDWORD PTR [rbp-"
 							<< ptr0->offset
 							<< "], xmm0\n";
-					} else 
+					} else if ( it.getRes().type == TypeKind::IntK)
 					{
-						::std::cout << "\tmov\teax, " << it.getVal1().name << ::std::endl;
-						::std::cout << "\tmov\tDWORD [rbp-"
+						::std::stringstream ss;
+						ss << it.getVal1().name;
+						int tmp;
+						ss >> tmp;
+
+						::std::cout << "\tmov\teax, " << tmp << ::std::endl;
+						::std::cout << "\tmov\tDWORD PTR [rbp-"
 							<< ptr0->offset
 							<< "], eax\n";
 					}
 				}
-			}  
+			} 
 		} else if ( it.getOperand() == "return")
 		{
 			::std::cout << "8\n";
-			if ( it.getVal1().name.at(0) != '@' )
+			if ( it.getVal1().name.at(0) != '@')
 			{
 				auto ptr = 
 					now_tab->research_elem_global(it.getVal1().name);
@@ -2936,8 +3879,8 @@ void analysis::genCode()
 					{
 						if ( ptr->datatype == TypeKind::IntK)
 						{
-							::std::cout << "\tmov\teax, DWORD [rbp-" 
-							<< ptr->offset
+							::std::cout << "\tmov\teax, DWORD PTR [rbp-" 
+								<< ptr->offset
 								<< "]\n";
 						} else 
 						{
@@ -2950,13 +3893,13 @@ void analysis::genCode()
 					{
 						if ( ptr->datatype == TypeKind::FloatK)
 						{
-							::std::cout << "\tmovss\txmm0, DWORD [rbp-"
+							::std::cout << "\tmovss\txmm0, DWORD PTR [rbp-"
 								<< ptr->offset
 								<< "]\n";
 						} else 
 						{
 							::std::cout << "\tpxor\txmm0, xmm0\n";
-							::std::cout << "\tcvtsi2ss\txmm0, DWORD [rbp-"
+							::std::cout << "\tcvtsi2ss\txmm0, DWORD PTR [rbp-"
 								<< ptr->offset
 								<< "]\n";
 						}
@@ -2984,7 +3927,7 @@ void analysis::genCode()
 							literal.push_back(it.getVal1().name);
 						}
 						auto ptr = current_tab->research_elem_global(it.getVal1().name);
-						::std::cout << "\tmovss\txmm0, DWORD "
+						::std::cout << "\tmovss\txmm0, DWORD PTR "
 							<< ".L" << ptr->floatcounter
 							<< "[rip]\n";
 					}
@@ -2996,6 +3939,9 @@ void analysis::genCode()
 			continue;
 		}
 	}
+
+	::std::cout << "\t.section\t.rodata\n";
+	::std::cout << "\t.align 4\n";
 
 	for(auto x : literal)
 	{
@@ -3009,8 +3955,6 @@ void analysis::genCode()
 		ss >> *tmpfloat;
 		::std::cout << "\t.long\t" << s << ::std::endl;
 		::std::cout << "\t.align\t4\n";
-		::std::cout << ::std::endl;
 	}
-
 }
 }
